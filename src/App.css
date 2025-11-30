@@ -1,0 +1,122 @@
+/* --- Orders Page Styles --- */
+.orders-root {
+	min-height: 100vh;
+	background: linear-gradient(180deg, var(--bg), #0b1220 90%);
+	color: #e6edf3;
+	display: flex;
+	flex-direction: column;
+}
+.orders-header {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	background: linear-gradient(90deg, #071028 60%, #0b1220 100%);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 18px 32px;
+	box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.user-info {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+.user-avatar {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, var(--primary), var(--accent));
+	color: #fff;
+	font-weight: 700;
+	font-size: 1.3rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 2px 8px rgba(16,185,129,0.12);
+}
+.user-name {
+	font-size: 1.1rem;
+	font-weight: 500;
+}
+.user-role {
+	font-size: 0.95rem;
+	color: var(--muted);
+}
+.orders-nav {
+	display: flex;
+	gap: 16px;
+}
+.orders-nav .btn {
+	font-size: 1rem;
+	padding: 10px 22px;
+	border-radius: 8px;
+	background: var(--glass);
+	color: #e6edf3;
+	border: none;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+	transition: background 0.2s;
+}
+.orders-nav .btn.primary {
+	background: linear-gradient(90deg, var(--primary), #06b6d4);
+	color: #001018;
+}
+.orders-nav .btn:hover {
+	background: var(--primary);
+	color: #001018;
+}
+.orders-main {
+	display: flex;
+	gap: 32px;
+	margin-top: 32px;
+}
+.mesas-panel, .ordenes-panel {
+	flex: 1;
+}
+.mesas-list, .ordenes-list {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+}
+.mesa-card {
+	background: var(--card);
+	border-radius: 14px;
+	box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+	padding: 18px 22px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	border-left: 6px solid var(--primary);
+	transition: box-shadow 0.2s, border-color 0.2s;
+}
+.mesa-card.mesa-abierta { border-color: var(--primary); }
+.mesa-card.mesa-en\ pago { border-color: var(--accent); }
+.mesa-card.mesa-cerrada { border-color: var(--muted); opacity: 0.7; }
+.mesa-num { font-size: 1.2rem; font-weight: 600; }
+.mesa-estado { font-size: 1rem; color: var(--primary); }
+.mesa-card.mesa-en\ pago .mesa-estado { color: var(--accent); }
+.mesa-card.mesa-cerrada .mesa-estado { color: var(--muted); }
+.mesa-ocupacion { font-size: 0.95rem; color: var(--muted); }
+.mesa-card .btn.small { align-self: flex-end; margin-top: 8px; }
+.orden-card {
+	background: var(--surface);
+	border-radius: 14px;
+	box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+	padding: 16px 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	border-left: 6px solid var(--primary);
+	transition: box-shadow 0.2s, border-color 0.2s;
+}
+.orden-card.orden-enpreparación { border-color: var(--accent); }
+.orden-card.orden-listo { border-color: var(--primary); }
+.orden-card.orden-enpago { border-color: var(--muted); }
+.orden-cliente { font-size: 1.1rem; font-weight: 500; }
+.orden-total { font-size: 1rem; color: var(--primary); }
+.orden-estado { font-size: 0.95rem; color: var(--muted); }
+.orden-card .btn.small { align-self: flex-end; margin-top: 8px; }
+@media(max-width:1100px){
+	.orders-main{flex-direction:column;gap:18px;}
+}
+@import "tailwindcss";

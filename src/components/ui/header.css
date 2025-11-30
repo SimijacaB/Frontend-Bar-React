@@ -1,0 +1,90 @@
+.site-header{position:sticky;top:0;z-index:30;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+.header-inner{display:flex;align-items:center;justify-content:space-between}
+.nav{display:flex;gap:12px}
+.nav a{color:var(--muted);text-decoration:none;padding:8px;border-radius:8px}
+.nav a:hover{color:var(--primary);background:rgba(255,255,255,0.02)}
+.actions .btn{padding:8px 12px}
+
+@media(max-width:700px){
+  .nav{position:absolute;top:64px;right:16px;background:var(--card);padding:12px;border-radius:10px;display:none;flex-direction:column;min-width:160px;box-shadow:0 6px 18px rgba(0,0,0,0.4)}
+  .nav.open{display:flex}
+  .hamburger{display:inline-flex;margin-left:8px;background:transparent;border:0;padding:8px;border-radius:8px}
+  .hamburger .bar{width:18px;height:2px;background:var(--muted);display:block;margin:3px 0;border-radius:2px}
+  .actions{display:flex;align-items:center}
+}
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03)
+}
+
+.header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between
+}
+
+.nav {
+    display: flex;
+    gap: 12px
+}
+
+.nav a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 8px;
+    border-radius: 8px
+}
+
+.nav a:hover {
+    color: var(--primary);
+    background: rgba(255, 255, 255, 0.02)
+}
+
+.actions .btn {
+    padding: 8px 12px
+}
+
+@media(max-width:700px) {
+    .nav {
+        position: absolute;
+        top: 64px;
+        right: 16px;
+        background: var(--card);
+        padding: 12px;
+        border-radius: 10px;
+        display: none;
+        flex-direction: column;
+        min-width: 160px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    }
+
+    .nav.open {
+        display: flex
+    }
+
+    .hamburger {
+        display: inline-flex;
+        margin-left: 8px;
+        background: transparent;
+        border: 0;
+        padding: 8px;
+        border-radius: 8px
+    }
+
+    .hamburger .bar {
+        width: 18px;
+        height: 2px;
+        background: var(--muted);
+        display: block;
+        margin: 3px 0;
+        border-radius: 2px
+    }
+
+    .actions {
+        display: flex;
+        align-items: center
+    }
+}
