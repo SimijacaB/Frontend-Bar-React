@@ -61,7 +61,7 @@ const CartPage: FC = () => {
 
       toast.success('¡Pedido realizado con éxito!')
       clearCart()
-      navigate('/orders')
+      navigate('/menu')
     } catch (error) {
       toast.error('Error al procesar el pedido')
     } finally {

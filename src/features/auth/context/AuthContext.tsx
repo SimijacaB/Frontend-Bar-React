@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import type { UserDto, LoginRequest, AuthResponse } from '../../../types'
+import type { UserDto, LoginRequest } from '../../../types'
 import apiClient from '../../../lib/axios'
+import API_BASE_URL from '../../../config/api'
 
 interface AuthContextType {
   user: UserDto | null
@@ -26,6 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedUser && storedToken) {
       try {
         setUser(JSON.parse(storedUser))
+        // Optionally verify the token is still valid
+        verifyToken(storedToken)
       } catch {
         localStorage.removeItem('user')
         localStorage.removeItem('authToken')
@@ -34,21 +37,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
   }, [])
 
+  // Verify token is still valid
+  const verifyToken = async (token: string) => {
+    try {
+      const response = await apiClient.get(`${API_BASE_URL}/api/auth/me`, {
+        headers: { Authorization: `Basic ${token}` }
+      })
+      setUser(response.data)
+      localStorage.setItem('user', JSON.stringify(response.data))
+    } catch {
+      // Token invalid, clear storage
+      localStorage.removeItem('user')
+      localStorage.removeItem('authToken')
+      setUser(null)
+    }
+  }
+
   const login = useCallback(async (credentials: LoginRequest) => {
     setIsLoading(true)
     setError(null)
 
     try {
-      // Replace with actual login endpoint when available
-      const response = await apiClient.post<AuthResponse>('/api/auth/login', credentials)
-      const { token, user: userData } = response.data
+      // Create Basic Auth token (Base64 encoded username:password)
+      const token = btoa(`${credentials.username}:${credentials.password}`)
+      
+      // Call login endpoint with Basic Auth header using GET
+      const response = await apiClient.get(`${API_BASE_URL}/api/auth/login`, {
+        headers: {
+          Authorization: `Basic ${token}`
+        }
+      })
 
+      const userData: UserDto = response.data
+
+      // Store token and user data
       localStorage.setItem('authToken', token)
       localStorage.setItem('user', JSON.stringify(userData))
       setUser(userData)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al iniciar sesión'
+      const message = err instanceof Error ? err.message : 'Usuario o contraseña incorrectos'
       setError(message)
+      console.error('Login error:', err)
       throw err
     } finally {
       setIsLoading(false)

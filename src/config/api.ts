@@ -2,6 +2,13 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8090'
 
 export const API_ENDPOINTS = {
+  // Auth
+  AUTH: {
+    LOGIN: `${API_BASE_URL}/api/auth/login`,
+    ME: `${API_BASE_URL}/api/auth/me`,
+    CHECK: `${API_BASE_URL}/api/auth/check`,
+  },
+
   // Products
   PRODUCTS: {
     ALL: `${API_BASE_URL}/api/product/all`,

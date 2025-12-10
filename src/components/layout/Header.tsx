@@ -9,10 +9,11 @@ const Header: FC = () => {
   const location = useLocation()
   const { itemCount } = useCart()
 
+  // Main navigation - "Mis Pedidos" removed because customers access via QR
+  // Staff access orders through /orders after login
   const navLinks = [
     { href: '/', label: 'Inicio' },
     { href: '/menu', label: 'Menú' },
-    { href: '/orders', label: 'Mis Pedidos' },
     { href: '/about', label: 'Nosotros' },
   ]
 

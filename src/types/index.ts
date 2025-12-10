@@ -151,10 +151,9 @@ export interface BillDto {
 
 // Auth Types
 export interface UserDto {
-  id: string
   username: string
   email: string
-  role: UserRole
+  roles: string[]  // Array of role names: "ADMIN", "WAITER", "BARTENDER", "CHEF"
 }
 
 export interface LoginRequest {

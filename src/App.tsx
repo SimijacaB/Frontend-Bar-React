@@ -16,6 +16,9 @@ import OrdersPage from './pages/orders/Orders'
 import CartPage from './pages/cart/Cart'
 import { QRGenerator } from './pages/admin'
 
+// Pages - Auth
+import { LoginPage } from './features/auth/components'
+
 // Pages - Public (for customers via QR)
 import { PublicMenu } from './pages/public'
 import CustomerMenu from './pages/public/CustomerMenu'
@@ -71,6 +74,7 @@ const App: FC = () => {
             {/* WAITER/STAFF ROUTES                         */}
             {/* ============================================ */}
             <Route path="/meseros" element={<WaiterPanel />} />
+            <Route path="/tomar-pedido" element={<CustomerMenu />} />
             
             {/* ============================================ */}
             {/* INTERNAL/ADMIN ROUTES                       */}
@@ -145,16 +149,7 @@ const App: FC = () => {
             />
             <Route
               path="/login"
-              element={
-                <Layout>
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h1 className="text-3xl font-bold text-white mb-4">Iniciar Sesión</h1>
-                      <p className="text-slate-400">Página en construcción</p>
-                    </div>
-                  </div>
-                </Layout>
-              }
+              element={<LoginPage />}
             />
             
             {/* 404 Route */}

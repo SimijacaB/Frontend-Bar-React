@@ -12,12 +12,18 @@ import {
   GlassWater,
   Martini,
   X,
-  User
+  User,
+  Clock,
+  CheckCircle,
+  ChefHat,
+  Package,
+  QrCode
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { productService } from '../../features/products/api/productService'
 import { orderService } from '../../features/orders/api/orderService'
-import type { ProductDto } from '../../types'
+import type { ProductDto, OrderDto } from '../../types'
+import { OrderStatus } from '../../types'
 
 // Category icons
 const categoryIcons: Record<string, typeof Wine> = {
@@ -43,7 +49,10 @@ interface CartItem {
 const CustomerMenu: FC = () => {
   const { mesa } = useParams<{ mesa: string }>()
   const navigate = useNavigate()
-  const tableNumber = mesa ? parseInt(mesa, 10) : 1
+  
+  // Only works if coming from QR (mesa param exists)
+  const hasTableFromQR = !!mesa
+  const tableNumber = mesa ? parseInt(mesa, 10) : 0
 
   // State
   const [products, setProducts] = useState<ProductDto[]>([])
@@ -55,6 +64,9 @@ const CustomerMenu: FC = () => {
   const [customerName, setCustomerName] = useState('')
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [myOrders, setMyOrders] = useState<OrderDto[]>([])
+  const [isOrdersOpen, setIsOrdersOpen] = useState(false)
+  const [loadingOrders, setLoadingOrders] = useState(false)
 
   // Load products
   useEffect(() => {
@@ -71,6 +83,33 @@ const CustomerMenu: FC = () => {
     }
     fetchProducts()
   }, [])
+
+  // Load orders for this table - only if coming from QR
+  const fetchMyOrders = async () => {
+    if (!hasTableFromQR || !tableNumber) {
+      setMyOrders([])
+      return
+    }
+    setLoadingOrders(true)
+    try {
+      // Use the specific endpoint: /api/order/find-by-table-number/{tableNumber}
+      const data = await orderService.getByTableNumber(tableNumber)
+      console.log(`Fetched orders for table ${tableNumber}:`, data)
+      setMyOrders(data)
+    } catch (err) {
+      console.error(`Error loading orders for table ${tableNumber}:`, err)
+      setMyOrders([])
+    } finally {
+      setLoadingOrders(false)
+    }
+  }
+
+  // Load orders when opening the panel - only if has table from QR
+  useEffect(() => {
+    if (isOrdersOpen && hasTableFromQR) {
+      fetchMyOrders()
+    }
+  }, [isOrdersOpen, tableNumber, hasTableFromQR])
 
   // Get unique categories
   const categories = ['ALL', ...new Set(products.map(p => p.category))]
@@ -124,6 +163,11 @@ const CustomerMenu: FC = () => {
       return
     }
 
+    if (customerName.trim().length < 4) {
+      toast.error('El nombre debe tener al menos 4 caracteres')
+      return
+    }
+
     if (cart.length === 0) {
       toast.error('Tu carrito está vacío')
       return
@@ -147,10 +191,15 @@ const CustomerMenu: FC = () => {
       setCart([])
       setCustomerName('')
       setIsCheckoutOpen(false)
-      navigate(`/pedido-confirmado/${tableNumber}`)
-    } catch (err) {
+      
+      // Navigate to confirmation page for THIS table only
+      const confirmationUrl = `/pedido-confirmado/${tableNumber}`
+      console.log('Navigating to:', confirmationUrl)
+      navigate(confirmationUrl)
+    } catch (err: unknown) {
       console.error('Error creating order:', err)
-      toast.error('Error al enviar el pedido. Intenta de nuevo.')
+      const errorMessage = err instanceof Error ? err.message : 'Error al enviar el pedido'
+      toast.error(errorMessage)
     } finally {
       setSubmitting(false)
     }
@@ -178,6 +227,26 @@ const CustomerMenu: FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Show QR prompt if no table from QR */}
+      {!hasTableFromQR ? (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="text-center max-w-sm">
+            <div className="w-24 h-24 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <QrCode className="w-12 h-12 text-emerald-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-3">Escanea el código QR</h1>
+            <p className="text-slate-400 mb-6">
+              Para hacer tu pedido, escanea el código QR que se encuentra en tu mesa.
+            </p>
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <p className="text-slate-500 text-sm">
+                El código QR contiene el número de tu mesa y te permitirá ver el menú y hacer pedidos.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Header */}
       <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-700/50">
         <div className="px-4 py-3">
@@ -186,17 +255,32 @@ const CustomerMenu: FC = () => {
               <h1 className="text-xl font-bold text-white">🍹 Bar Menu</h1>
               <p className="text-sm text-emerald-400">Mesa {tableNumber}</p>
             </div>
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="relative p-3 bg-emerald-500 rounded-full text-white shadow-lg"
-            >
-              <ShoppingCart className="w-6 h-6" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full text-xs flex items-center justify-center font-bold">
-                  {cartCount}
-                </span>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              {/* My Orders Button */}
+              <button
+                onClick={() => setIsOrdersOpen(true)}
+                className="relative p-3 bg-amber-500 rounded-full text-white shadow-lg"
+              >
+                <Clock className="w-6 h-6" />
+                {myOrders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED).length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full text-xs flex items-center justify-center font-bold">
+                    {myOrders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED).length}
+                  </span>
+                )}
+              </button>
+              {/* Cart Button */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-3 bg-emerald-500 rounded-full text-white shadow-lg"
+              >
+                <ShoppingCart className="w-6 h-6" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full text-xs flex items-center justify-center font-bold">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Search */}
@@ -402,7 +486,118 @@ const CustomerMenu: FC = () => {
         </div>
       )}
 
-      {/* Checkout Modal - Just ask for name */}
+      {/* My Orders Modal */}
+      {isOrdersOpen && (
+        <div className="fixed inset-0 z-50">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsOrdersOpen(false)}
+          />
+          <div className="absolute bottom-0 left-0 right-0 bg-slate-900 rounded-t-3xl max-h-[85vh] flex flex-col animate-slide-up">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-700">
+              <div>
+                <h2 className="text-lg font-bold text-white">Mis Pedidos</h2>
+                <p className="text-sm text-slate-400">Mesa {tableNumber}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchMyOrders}
+                  className="p-2 hover:bg-slate-800 rounded-lg text-amber-400"
+                >
+                  <Clock className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setIsOrdersOpen(false)}
+                  className="p-2 hover:bg-slate-800 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Orders List */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingOrders ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-3 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-slate-400">Cargando pedidos...</p>
+                </div>
+              ) : myOrders.length === 0 ? (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-400">No tienes pedidos aún</p>
+                  <p className="text-slate-500 text-sm mt-1">¡Agrega productos al carrito!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {myOrders.map((order) => {
+                    let statusBg = 'bg-amber-500/20 border-amber-500/30'
+                    let statusText = 'text-amber-400'
+                    let statusLabel = 'Pendiente'
+                    let StatusIcon = Clock
+
+                    if (order.status === OrderStatus.IN_PROGRESS) {
+                      statusBg = 'bg-cyan-500/20 border-cyan-500/30'
+                      statusText = 'text-cyan-400'
+                      statusLabel = 'Preparando'
+                      StatusIcon = ChefHat
+                    } else if (order.status === OrderStatus.READY) {
+                      statusBg = 'bg-emerald-500/20 border-emerald-500/30'
+                      statusText = 'text-emerald-400'
+                      statusLabel = '¡Listo!'
+                      StatusIcon = CheckCircle
+                    } else if (order.status === OrderStatus.DELIVERED) {
+                      statusBg = 'bg-slate-500/20 border-slate-500/30'
+                      statusText = 'text-slate-400'
+                      statusLabel = 'Entregado'
+                      StatusIcon = CheckCircle
+                    } else if (order.status === OrderStatus.CANCELLED) {
+                      statusBg = 'bg-red-500/20 border-red-500/30'
+                      statusText = 'text-red-400'
+                      statusLabel = 'Cancelado'
+                      StatusIcon = X
+                    }
+
+                    return (
+                      <div
+                        key={order.id}
+                        className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="text-white font-semibold">{order.clientName}</p>
+                            <p className="text-slate-500 text-xs">
+                              Orden #{order.id} • {order.date ? new Date(order.date).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                            </p>
+                          </div>
+                          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${statusBg} border`}>
+                            <StatusIcon className={`w-4 h-4 ${statusText}`} />
+                            <span className={`text-xs font-medium ${statusText}`}>{statusLabel}</span>
+                          </div>
+                        </div>
+                        
+                        {order.notes && (
+                          <p className="text-amber-400 text-xs mb-2 bg-amber-500/10 px-2 py-1 rounded">
+                            Nota: {order.notes}
+                          </p>
+                        )}
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
+                          <span className="text-slate-400 text-sm">Total</span>
+                          <span className="text-emerald-400 font-bold">{formatPrice(order.valueToPay || 0)}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Modal */}
       {isCheckoutOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
@@ -422,12 +617,18 @@ const CustomerMenu: FC = () => {
                 <User className="w-8 h-8 text-emerald-400" />
               </div>
               <h3 className="text-xl font-bold text-white">¡Casi listo!</h3>
-              <p className="text-slate-400 mt-1">Ingresa tu nombre para enviar el pedido</p>
+              <p className="text-slate-400 mt-1">
+                Ingresa tu nombre para enviar el pedido
+              </p>
             </div>
 
             <div className="space-y-4">
+              {/* Customer Name Input */}
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Tu nombre</label>
+                <label className="block text-sm text-slate-400 mb-2">
+                  <User className="w-4 h-4 inline mr-1" />
+                  Tu nombre
+                </label>
                 <input
                   type="text"
                   value={customerName}
@@ -438,10 +639,11 @@ const CustomerMenu: FC = () => {
                 />
               </div>
 
+              {/* Order Summary */}
               <div className="bg-slate-800/50 rounded-xl p-4">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-slate-400">Mesa</span>
-                  <span className="text-white font-medium">{tableNumber}</span>
+                  <span className="font-medium text-white">{tableNumber}</span>
                 </div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-slate-400">Productos</span>
@@ -492,6 +694,8 @@ const CustomerMenu: FC = () => {
           animation: slide-up 0.3s ease-out;
         }
       `}</style>
+      </>
+      )}
     </div>
   )
 }

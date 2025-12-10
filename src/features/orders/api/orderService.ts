@@ -70,15 +70,17 @@ export const orderService = {
 
   // Create order from customer (via QR menu)
   createOrder: async (orderData: CustomerOrderData): Promise<OrderDetailDto> => {
-    // Transform to backend format
-    const payload: CreateOrderDto = {
-      tableNumber: orderData.tableNumber,
+    // Transform to backend format - must match OrderRequestDTO exactly
+    const payload = {
       clientName: orderData.customerName,
-      products: orderData.products.map(p => ({
+      tableNumber: orderData.tableNumber,
+      notes: '',
+      orderProducts: orderData.products.map(p => ({
         idProduct: p.productId,
         quantity: p.quantity
       }))
     }
+    console.log('Sending order payload:', payload)
     const response = await apiClient.post(API_ENDPOINTS.ORDERS.SAVE, payload)
     return response.data
   },
