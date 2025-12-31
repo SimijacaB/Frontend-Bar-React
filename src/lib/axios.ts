@@ -10,15 +10,15 @@ const apiClient = axios.create({
   timeout: 10000,
 })
 
-// Request interceptor for adding auth token (Basic Auth)
+// Request interceptor for adding auth token (JWT)
 apiClient.interceptors.request.use(
   (config) => {
     // Only add auth token if Authorization header is not already set
     if (!config.headers.Authorization) {
       const token = localStorage.getItem('authToken')
       if (token) {
-        // Token is already Base64 encoded credentials for Basic Auth
-        config.headers.Authorization = `Basic ${token}`
+        // Token is JWT token
+        config.headers.Authorization = `Bearer ${token}`
       }
     }
     return config

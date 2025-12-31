@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import type { FC } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, ShoppingCart, User } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Menu, X, ShoppingCart, User, LogOut } from 'lucide-react'
 import { useCart } from '../../features/products/context/CartContext'
+import { useAuth } from '../../features/auth/context/AuthContext'
 
 const Header: FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const { itemCount } = useCart()
+  const { user, isAuthenticated, logout } = useAuth()
 
   // Main navigation - "Mis Pedidos" removed because customers access via QR
   // Staff access orders through /orders after login
@@ -67,13 +70,29 @@ const Header: FC = () => {
             </Link>
 
             {/* User Menu */}
-            <Link
-              to="/login"
-              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
-            >
-              <User className="w-4 h-4" />
-              <span className="text-sm font-medium">Ingresar</span>
-            </Link>
+            {isAuthenticated ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <span className="text-slate-300 text-sm">Hola, {user?.username}</span>
+                <button
+                  onClick={() => {
+                    logout()
+                    navigate('/')
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="text-sm font-medium">Salir</span>
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+              >
+                <User className="w-4 h-4" />
+                <span className="text-sm font-medium">Ingresar</span>
+              </Link>
+            )}
 
             {/* Reserve Button */}
             <Link
@@ -113,14 +132,31 @@ const Header: FC = () => {
                 </Link>
               ))}
               <hr className="my-2 border-slate-800" />
-              <Link
-                to="/login"
-                onClick={() => setIsMenuOpen(false)}
-                className="flex items-center gap-2 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
-              >
-                <User className="w-4 h-4" />
-                Ingresar
-              </Link>
+              {isAuthenticated ? (
+                <div className="px-4 py-3">
+                  <span className="text-slate-300 text-sm">Hola, {user?.username}</span>
+                  <button
+                    onClick={() => {
+                      logout()
+                      navigate('/')
+                      setIsMenuOpen(false)
+                    }}
+                    className="flex items-center gap-2 w-full px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 mt-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Salir
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-2 px-4 py-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                >
+                  <User className="w-4 h-4" />
+                  Ingresar
+                </Link>
+              )}
               <Link
                 to="/reservations"
                 onClick={() => setIsMenuOpen(false)}

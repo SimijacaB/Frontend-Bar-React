@@ -17,7 +17,7 @@ import CartPage from './pages/cart/Cart'
 import { QRGenerator } from './pages/admin'
 
 // Pages - Auth
-import { LoginPage } from './features/auth/components'
+import { LoginPage, ProtectedRoute } from './features/auth/components'
 
 // Pages - Public (for customers via QR)
 import { PublicMenu } from './pages/public'
@@ -82,41 +82,51 @@ const App: FC = () => {
             <Route
               path="/"
               element={
-                <Layout>
-                  <Landing />
-                </Layout>
+                <ProtectedRoute>
+                  <Layout>
+                    <Landing />
+                  </Layout>
+                </ProtectedRoute>
               }
             />
             <Route
               path="/menu"
               element={
-                <Layout>
-                  <MenuPage />
-                </Layout>
+                <ProtectedRoute>
+                  <Layout>
+                    <MenuPage />
+                  </Layout>
+                </ProtectedRoute>
               }
             />
             <Route
               path="/cart"
               element={
-                <Layout>
-                  <CartPage />
-                </Layout>
+                <ProtectedRoute>
+                  <Layout>
+                    <CartPage />
+                  </Layout>
+                </ProtectedRoute>
               }
             />
             <Route
               path="/orders"
               element={
-                <Layout showFooter={false}>
-                  <OrdersPage />
-                </Layout>
+                <ProtectedRoute>
+                  <Layout showFooter={false}>
+                    <OrdersPage />
+                  </Layout>
+                </ProtectedRoute>
               }
             />
             <Route
               path="/admin/qr"
               element={
-                <Layout>
-                  <QRGenerator />
-                </Layout>
+                <ProtectedRoute>
+                  <Layout>
+                    <QRGenerator />
+                  </Layout>
+                </ProtectedRoute>
               }
             />
             
@@ -124,27 +134,31 @@ const App: FC = () => {
             <Route
               path="/about"
               element={
-                <Layout>
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h1 className="text-3xl font-bold text-white mb-4">Sobre Nosotros</h1>
-                      <p className="text-slate-400">Página en construcción</p>
+                <ProtectedRoute>
+                  <Layout>
+                    <div className="min-h-screen flex items-center justify-center">
+                      <div className="text-center">
+                        <h1 className="text-3xl font-bold text-white mb-4">Sobre Nosotros</h1>
+                        <p className="text-slate-400">Página en construcción</p>
+                      </div>
                     </div>
-                  </div>
-                </Layout>
+                  </Layout>
+                </ProtectedRoute>
               }
             />
             <Route
               path="/reservations"
               element={
-                <Layout>
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h1 className="text-3xl font-bold text-white mb-4">Reservaciones</h1>
-                      <p className="text-slate-400">Página en construcción</p>
+                <ProtectedRoute>
+                  <Layout>
+                    <div className="min-h-screen flex items-center justify-center">
+                      <div className="text-center">
+                        <h1 className="text-3xl font-bold text-white mb-4">Reservaciones</h1>
+                        <p className="text-slate-400">Página en construcción</p>
+                      </div>
                     </div>
-                  </div>
-                </Layout>
+                  </Layout>
+                </ProtectedRoute>
               }
             />
             <Route
@@ -156,15 +170,17 @@ const App: FC = () => {
             <Route
               path="*"
               element={
-                <Layout>
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h1 className="text-6xl font-bold text-emerald-400 mb-4">404</h1>
-                      <p className="text-xl text-white mb-2">Página no encontrada</p>
-                      <p className="text-slate-400">La página que buscas no existe</p>
+                <ProtectedRoute>
+                  <Layout>
+                    <div className="min-h-screen flex items-center justify-center">
+                      <div className="text-center">
+                        <h1 className="text-6xl font-bold text-emerald-400 mb-4">404</h1>
+                        <p className="text-xl text-white mb-2">Página no encontrada</p>
+                        <p className="text-slate-400">La página que buscas no existe</p>
+                      </div>
                     </div>
-                  </div>
-                </Layout>
+                  </Layout>
+                </ProtectedRoute>
               }
             />
           </Routes>

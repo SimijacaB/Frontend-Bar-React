@@ -1,8 +1,86 @@
 import type { FC } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Star, Clock, Users, Wine, UtensilsCrossed, QrCode, Bell } from 'lucide-react'
+import { ArrowRight, Star, Clock, Users, Wine, UtensilsCrossed, QrCode, Bell, BarChart3, Users as UsersIcon, ClipboardList } from 'lucide-react'
+import { useAuth } from '../../features/auth/context/AuthContext'
 
 const Landing: FC = () => {
+  const { isAuthenticated, user } = useAuth()
+
+  // If authenticated, show admin dashboard
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-12">
+              <h1 className="text-4xl font-bold text-white mb-4">
+                Panel de Administración
+              </h1>
+              <p className="text-slate-400">
+                Bienvenido, {user?.username}. Gestiona tu bar desde aquí.
+              </p>
+            </div>
+
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+              <Link
+                to="/orders"
+                className="group p-6 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-emerald-500/50 transition-all"
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <ClipboardList className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Pedidos</h3>
+                    <p className="text-slate-400 text-sm">Gestionar pedidos activos</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+              </Link>
+
+              <Link
+                to="/menu"
+                className="group p-6 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-emerald-500/50 transition-all"
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <UtensilsCrossed className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Menú</h3>
+                    <p className="text-slate-400 text-sm">Administrar productos</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+              </Link>
+
+              <Link
+                to="/admin/qr"
+                className="group p-6 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-emerald-500/50 transition-all"
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <QrCode className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">QR Codes</h3>
+                    <p className="text-slate-400 text-sm">Generar códigos QR</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+
+            {/* Stats or additional content can go here */}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Public landing page
   return (
     <>
       {/* Hero Section */}
