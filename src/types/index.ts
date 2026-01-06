@@ -102,6 +102,7 @@ export interface OrderDetailDto {
   orderDate?: string
   valueToPay?: number
   total?: number
+  orderItemList?: OrderItemResponseDto[]  // Matches backend field name
   orderItems?: OrderItemDto[]
   products?: OrderProductDto[]
 }
@@ -113,6 +114,15 @@ export interface OrderItemDto {
   quantity: number
   unitPrice: number
   subtotal: number
+}
+
+// Matches backend OrderItemResponseDTO exactly
+export interface OrderItemResponseDto {
+  id: number
+  productName: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
 }
 
 export interface CreateOrderDto {

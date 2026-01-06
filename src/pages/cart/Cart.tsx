@@ -6,6 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle, Input } from '../../component
 import Button from '../../components/ui/Button'
 import toast from 'react-hot-toast'
 
+// Format price in Colombian Pesos
+const formatPrice = (price: number | undefined) => {
+  if (!price) return '$0'
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price)
+}
+
 const CartPage: FC = () => {
   const navigate = useNavigate()
   const { cart, removeItem, updateQuantity, clearCart, setTableNumber, setClientName } = useCart()
@@ -123,7 +134,7 @@ const CartPage: FC = () => {
                     <div className="flex-1 min-w-0">
                       <h3 className="text-white font-semibold truncate">{item.product.name}</h3>
                       <p className="text-slate-400 text-sm truncate">{item.product.description}</p>
-                      <p className="text-emerald-400 font-semibold mt-1">${item.price.toFixed(2)} c/u</p>
+                      <p className="text-emerald-400 font-semibold mt-1">{formatPrice(item.price)} c/u</p>
                     </div>
 
                     {/* Quantity and Actions */}
@@ -145,7 +156,7 @@ const CartPage: FC = () => {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-white font-bold">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          {formatPrice(item.price * item.quantity)}
                         </span>
                         <button
                           onClick={() => {
@@ -204,15 +215,15 @@ const CartPage: FC = () => {
                   <div className="border-t border-slate-700 pt-4 space-y-2">
                     <div className="flex justify-between text-slate-400">
                       <span>Subtotal</span>
-                      <span>${cart.total.toFixed(2)}</span>
+                      <span>{formatPrice(cart.total)}</span>
                     </div>
                     <div className="flex justify-between text-slate-400">
                       <span>Impuestos (10%)</span>
-                      <span>${(cart.total * 0.1).toFixed(2)}</span>
+                      <span>{formatPrice(cart.total * 0.1)}</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold text-white pt-2 border-t border-slate-700">
                       <span>Total</span>
-                      <span className="text-emerald-400">${(cart.total * 1.1).toFixed(2)}</span>
+                      <span className="text-emerald-400">{formatPrice(cart.total * 1.1)}</span>
                     </div>
                   </div>
 

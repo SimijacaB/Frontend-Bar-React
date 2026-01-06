@@ -119,4 +119,57 @@ export const orderService = {
   async delete(id: number): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.ORDERS.DELETE(id))
   },
+
+  /**
+   * Obtiene las órdenes del mesero autenticado (mis órdenes)
+   * El backend identifica al usuario por el token JWT
+   */
+  async getMyOrders(): Promise<OrderDto[]> {
+    const response = await apiClient.get(API_ENDPOINTS.ORDERS.MY_ORDERS)
+    return response.data
+  },
+
+  /**
+   * Obtiene órdenes filtradas por un rango de fechas (filtrado en backend)
+   * @param startDate - Fecha inicial en formato YYYY-MM-DD (null para todas)
+   * @param endDate - Fecha final en formato YYYY-MM-DD (opcional)
+   */
+  async getByDateRange(startDate: string | null, endDate?: string | null): Promise<OrderDto[]> {
+    // Si no hay fecha de inicio, devolver todas las órdenes
+    if (!startDate) {
+      const response = await apiClient.get(API_ENDPOINTS.ORDERS.ALL)
+      return response.data
+    }
+    
+    // Usar el endpoint de rango de fechas con query params
+    const response = await apiClient.get(API_ENDPOINTS.ORDERS.BY_DATE_RANGE, {
+      params: {
+        startDate,
+        endDate: endDate || startDate
+      }
+    })
+    return response.data
+  },
+
+  /**
+   * Obtiene órdenes del mesero autenticado filtradas por fecha (filtrado en backend)
+   * @param startDate - Fecha inicial en formato YYYY-MM-DD (null para todas)
+   * @param endDate - Fecha final en formato YYYY-MM-DD (opcional)
+   */
+  async getMyOrdersByDateRange(startDate: string | null, endDate?: string | null): Promise<OrderDto[]> {
+    // Si no hay fecha de inicio, devolver todas mis órdenes
+    if (!startDate) {
+      const response = await apiClient.get(API_ENDPOINTS.ORDERS.MY_ORDERS)
+      return response.data
+    }
+    
+    // Usar el endpoint de mis órdenes con rango de fechas
+    const response = await apiClient.get(API_ENDPOINTS.ORDERS.MY_ORDERS_DATE_RANGE, {
+      params: {
+        startDate,
+        endDate: endDate || startDate
+      }
+    })
+    return response.data
+  },
 }

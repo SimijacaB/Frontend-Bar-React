@@ -6,6 +6,17 @@ import { Card, CardContent, Input, Badge, LoadingState } from '../../components/
 import { Category } from '../../types'
 import toast from 'react-hot-toast'
 
+// Format price in Colombian Pesos
+const formatPrice = (price: number | undefined) => {
+  if (!price) return '$0'
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price)
+}
+
 // Fallback data for demo purposes
 const fallbackProducts = [
   { id: 1, name: 'Mojito Clásico', code: 'MOJ001', description: 'Ron blanco, lima, hierbabuena, soda', category: Category.COCKTAILS, price: 8.50 },
@@ -202,7 +213,7 @@ const MenuPage: FC = () => {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                              ${product.price.toFixed(2)}
+                              {formatPrice(product.price)}
                             </span>
                           </div>
 

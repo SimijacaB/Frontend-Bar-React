@@ -9,14 +9,17 @@ import {
   RefreshCw,
   Filter,
   Receipt,
-  TrendingUp
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, OrderStatusBadge, LoadingState } from '../../components/ui'
 import Button from '../../components/ui/Button'
 import { orderService } from '../../features/orders/api/orderService'
 import { useAuth } from '../../features/auth/context/AuthContext'
-import type { OrderDto } from '../../types'
-import { OrderStatus } from '../../types'
+import { useOrdersFilter } from '../../features/orders/hooks/useOrdersFilter'
+import { DateFilter } from '../../features/orders/components/DateFilter'
+import type { OrderDto, OrderDetailDto } from '../../types'
+import { OrderStatus, UserRole } from '../../types'
 import toast from 'react-hot-toast'
 
 // Mock tables data - would come from backend
@@ -44,44 +47,35 @@ const fallbackOrders: OrderDto[] = [
 
 const OrdersPage: FC = () => {
   const { user } = useAuth()
-  const [orders, setOrders] = useState<OrderDto[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [selectedTable, setSelectedTable] = useState<number | null>(null)
   const [statusFilter, setStatusFilter] = useState<OrderStatus | null>(null)
   const [activeTab, setActiveTab] = useState<'orders' | 'billing' | 'reports'>('orders')
-  const [selectedOrder, setSelectedOrder] = useState<OrderDto | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<OrderDetailDto | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false)
 
   // Check if user is admin/staff (not a regular customer)
   const isStaff = user?.roles?.some(role => ['ADMIN', 'WAITER', 'BARTENDER', 'CHEF'].includes(role)) ?? false
   
+  // Hook para filtrado de órdenes basado en rol y fecha
+  const {
+    orders,
+    isLoading,
+    error,
+    dateFilter,
+    setFilterType,
+    setSpecificDate,
+    refresh: fetchOrders,
+    isAdmin,
+    isWaiter,
+  } = useOrdersFilter({
+    userRole: user?.roles || [],
+    autoFetch: true,
+    refreshInterval: 10000, // Auto-refresh cada 10 segundos
+  })
+  
   // Get table number from user if they're a customer (would come from localStorage or context)
   const customerTableNumber = !isStaff ? selectedTable : null
-
-  // Fetch orders
-  const fetchOrders = async () => {
-    setIsLoading(true)
-    try {
-      const data = await orderService.getAll()
-      setOrders(data)
-    } catch (error) {
-      console.error('Error fetching orders:', error)
-      // Use fallback data
-      setOrders(fallbackOrders)
-      toast.error('Usando datos de demostración')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchOrders()
-    // Auto-refresh every 10 seconds to show new orders from customers
-    const interval = setInterval(() => {
-      fetchOrders()
-    }, 10000)
-    return () => clearInterval(interval)
-  }, [])
 
   // Filter orders - if customer, only show their table's orders
   const filteredOrders = orders.filter(order => {
@@ -108,17 +102,31 @@ const OrdersPage: FC = () => {
       await orderService.changeStatus(orderId, newStatus)
       toast.success('Estado actualizado')
       fetchOrders()
-    } catch (error) {
-      // Demo mode - update locally
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o))
-      toast.success('Estado actualizado (demo)')
+    } catch (err) {
+      console.error('Error updating status:', err)
+      toast.error('Error al actualizar estado')
     }
   }
 
   // Open order details modal
-  const handleViewOrder = (order: OrderDto) => {
-    setSelectedOrder(order)
+  const handleViewOrder = async (order: OrderDto) => {
     setIsDetailModalOpen(true)
+    setIsLoadingOrderDetails(true)
+    try {
+      const fullOrder = await orderService.getById(order.id)
+      setSelectedOrder(fullOrder)
+    } catch (error) {
+      console.error('Error fetching order details:', error)
+      // Fallback to basic order info
+      setSelectedOrder({
+        ...order,
+        orderItems: [],
+        products: []
+      })
+      toast.error('Error cargando detalles de la orden')
+    } finally {
+      setIsLoadingOrderDetails(false)
+    }
   }
 
   // Format price
@@ -128,6 +136,7 @@ const OrdersPage: FC = () => {
       style: 'currency',
       currency: 'COP',
       minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(price)
   }
 
@@ -181,12 +190,44 @@ const OrdersPage: FC = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                Panel de Pedidos
-              </h1>
-              <p className="text-slate-400">Gestiona las órdenes y mesas del bar</p>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                  Panel de Pedidos
+                </h1>
+                {/* Badge de rol */}
+                {isAdmin && (
+                  <Badge variant="info" className="!bg-purple-500/20 !text-purple-400 !border-purple-500/30">
+                    Administrador
+                  </Badge>
+                )}
+                {isWaiter && !isAdmin && (
+                  <Badge variant="info" className="!bg-cyan-500/20 !text-cyan-400 !border-cyan-500/30">
+                    Mesero
+                  </Badge>
+                )}
+              </div>
+              <p className="text-slate-400">
+                {isWaiter && !isAdmin 
+                  ? 'Tus órdenes del día' 
+                  : 'Gestiona las órdenes y mesas del bar'
+                }
+              </p>
+              {/* Mostrar filtro activo */}
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-slate-500 text-sm">Mostrando:</span>
+                <span className="text-emerald-400 text-sm font-medium">{dateFilter.label}</span>
+                <span className="text-slate-500 text-sm">•</span>
+                <span className="text-slate-400 text-sm">{orders.length} órdenes</span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Filtro de fecha */}
+              <DateFilter
+                dateFilter={dateFilter}
+                onFilterTypeChange={setFilterType}
+                onSpecificDateChange={setSpecificDate}
+                showWeekOption={isAdmin} // Solo admin puede ver opción de semana
+              />
               <Button
                 variant="secondary"
                 leftIcon={<RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />}
@@ -195,14 +236,32 @@ const OrdersPage: FC = () => {
               >
                 Actualizar
               </Button>
-              <Button
-                variant="primary"
-                leftIcon={<Plus className="w-4 h-4" />}
-              >
-                Nueva Orden
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus className="w-4 h-4" />}
+                >
+                  Nueva Orden
+                </Button>
+              )}
             </div>
           </div>
+
+          {/* Mostrar error si existe */}
+          {error && (
+            <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400" />
+              <p className="text-red-400 text-sm">{error}</p>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={fetchOrders}
+                className="ml-auto"
+              >
+                Reintentar
+              </Button>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
@@ -247,7 +306,7 @@ const OrdersPage: FC = () => {
                 <div>
                   <p className="text-slate-400 text-sm">Total Ventas</p>
                   <p className="text-2xl font-bold text-white">
-                    ${orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0).toFixed(2)}
+                    {formatPrice(orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0))}
                   </p>
                 </div>
               </div>
@@ -384,7 +443,7 @@ const OrdersPage: FC = () => {
                             <div className="flex items-center gap-3">
                               <div className="text-right">
                                 <p className="text-xl font-bold text-emerald-400">
-                                  ${(order.valueToPay || 0).toFixed(2)}
+                                  {formatPrice(order.valueToPay || 0)}
                                 </p>
                                 <p className="text-slate-500 text-xs">
                                   {order.date ? new Date(order.date).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
@@ -465,7 +524,7 @@ const OrdersPage: FC = () => {
                               <p className="text-slate-400 text-sm">Orden #{order.id}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-xl font-bold text-amber-400">${(order.valueToPay || 0).toFixed(2)}</p>
+                              <p className="text-xl font-bold text-amber-400">{formatPrice(order.valueToPay || 0)}</p>
                               <Button size="sm" variant="primary" className="mt-2">
                                 Generar Factura
                               </Button>
@@ -490,7 +549,7 @@ const OrdersPage: FC = () => {
                     <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                       <p className="text-slate-400 text-sm">Total Ventas Hoy</p>
                       <p className="text-3xl font-bold text-emerald-400">
-                        ${orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0).toFixed(2)}
+                        {formatPrice(orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0))}
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -503,7 +562,7 @@ const OrdersPage: FC = () => {
                       <div className="p-4 rounded-xl bg-slate-800/50">
                         <p className="text-slate-400 text-sm">Ticket Promedio</p>
                         <p className="text-2xl font-bold text-white">
-                          ${orders.length > 0 ? (orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0) / orders.length).toFixed(2) : '0.00'}
+                          {formatPrice(orders.length > 0 ? orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0) / orders.length : 0)}
                         </p>
                       </div>
                     </div>
@@ -532,7 +591,7 @@ const OrdersPage: FC = () => {
                     <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
                       <p className="text-slate-400 text-sm">Ingresos</p>
                       <p className="text-2xl font-bold text-emerald-400">
-                        ${orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0).toFixed(2)}
+                        {formatPrice(orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0))}
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
@@ -564,7 +623,7 @@ const OrdersPage: FC = () => {
                             </p>
                           </div>
                         </div>
-                        <span className="text-amber-400 font-semibold">${(order.valueToPay || 0).toFixed(2)}</span>
+                        <span className="text-amber-400 font-semibold">{formatPrice(order.valueToPay || 0)}</span>
                       </div>
                     ))}
                   </div>
@@ -587,12 +646,12 @@ const OrdersPage: FC = () => {
                         <div key={waiter} className="p-3 rounded-xl bg-slate-800/50">
                           <div className="flex items-center justify-between mb-2">
                             <p className="text-white font-medium">{waiter}</p>
-                            <span className="text-emerald-400 font-semibold">${waiterTotal.toFixed(2)}</span>
+                            <span className="text-emerald-400 font-semibold">{formatPrice(waiterTotal)}</span>
                           </div>
                           <div className="flex items-center gap-2 text-sm text-slate-400">
                             <span>{waiterOrders.length} órdenes</span>
                             <span>•</span>
-                            <span>Promedio: ${(waiterTotal / waiterOrders.length).toFixed(2)}</span>
+                            <span>Promedio: {formatPrice(waiterTotal / waiterOrders.length)}</span>
                           </div>
                         </div>
                       )
@@ -616,7 +675,11 @@ const OrdersPage: FC = () => {
                 <p className="text-slate-400 text-sm">Orden #{selectedOrder.id}</p>
               </div>
               <button
-                onClick={() => setIsDetailModalOpen(false)}
+                onClick={() => {
+                  setIsDetailModalOpen(false)
+                  setSelectedOrder(null)
+                  setIsLoadingOrderDetails(false)
+                }}
                 className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
               >
                 <Plus className="w-5 h-5 text-slate-400 rotate-45" />
@@ -673,11 +736,16 @@ const OrdersPage: FC = () => {
               {/* Products */}
               <div className="mb-6">
                 <p className="text-slate-400 text-sm mb-3">Productos</p>
-                {selectedOrder.products && selectedOrder.products.length > 0 ? (
+                {isLoadingOrderDetails ? (
+                  <div className="bg-slate-800/50 rounded-xl p-8 text-center">
+                    <LoadingState />
+                    <p className="text-slate-500 mt-2">Cargando productos...</p>
+                  </div>
+                ) : selectedOrder && (selectedOrder.orderItemList && selectedOrder.orderItemList.length > 0) ? (
                   <div className="space-y-2">
-                    {selectedOrder.products.map((item, idx) => (
+                    {selectedOrder.orderItemList.map((item, idx) => (
                       <div
-                        key={`${selectedOrder.id}-${item.productId}-${idx}`}
+                        key={`${selectedOrder.id}-${item.id}-${idx}`}
                         className="flex items-center justify-between bg-slate-800/50 rounded-xl p-4"
                       >
                         <div className="flex items-center gap-3">
@@ -686,20 +754,16 @@ const OrdersPage: FC = () => {
                           </div>
                           <div>
                             <p className="text-white font-medium">
-                              {item.productName || `Producto #${item.productId}`}
+                              {item.productName}
                             </p>
-                            {item.price && (
-                              <p className="text-slate-400 text-sm">
-                                {formatPrice(item.price)} c/u
-                              </p>
-                            )}
+                            <p className="text-slate-400 text-sm">
+                              {formatPrice(item.unitPrice)} c/u
+                            </p>
                           </div>
                         </div>
-                        {item.price && (
-                          <p className="text-emerald-400 font-semibold">
-                            {formatPrice(item.price * item.quantity)}
-                          </p>
-                        )}
+                        <p className="text-emerald-400 font-semibold">
+                          {formatPrice(item.totalPrice)}
+                        </p>
                       </div>
                     ))}
                   </div>
