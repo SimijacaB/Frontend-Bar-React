@@ -13,6 +13,7 @@ import type { OrderStatus } from '../../../types'
 interface CustomerOrderData {
   tableNumber: number
   customerName: string
+  notes?: string
   products: Array<{
     productId: number
     quantity: number
@@ -68,13 +69,13 @@ export const orderService = {
     return response.data
   },
 
-  // Create order from customer (via QR menu)
+  // Create order from customer (via QR menu) or admin
   createOrder: async (orderData: CustomerOrderData): Promise<OrderDetailDto> => {
     // Transform to backend format - must match OrderRequestDTO exactly
     const payload = {
       clientName: orderData.customerName,
       tableNumber: orderData.tableNumber,
-      notes: '',
+      notes: orderData.notes || '',
       orderProducts: orderData.products.map(p => ({
         idProduct: p.productId,
         quantity: p.quantity
@@ -105,13 +106,13 @@ export const orderService = {
 
   // Change order status
   async changeStatus(orderId: number, status: OrderStatus | string): Promise<OrderDetailDto> {
-    const response = await apiClient.put(API_ENDPOINTS.ORDERS.CHANGE_STATUS(orderId, status))
+    const response = await apiClient.patch(API_ENDPOINTS.ORDERS.CHANGE_STATUS(orderId, status))
     return response.data
   },
 
   // Update order status (alias for WaiterPanel)
   updateOrderStatus: async (orderId: number, status: string): Promise<OrderDetailDto> => {
-    const response = await apiClient.put(API_ENDPOINTS.ORDERS.CHANGE_STATUS(orderId, status))
+    const response = await apiClient.patch(API_ENDPOINTS.ORDERS.CHANGE_STATUS(orderId, status))
     return response.data
   },
 

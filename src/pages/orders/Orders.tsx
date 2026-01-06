@@ -17,7 +17,7 @@ import Button from '../../components/ui/Button'
 import { orderService } from '../../features/orders/api/orderService'
 import { useAuth } from '../../features/auth/context/AuthContext'
 import { useOrdersFilter } from '../../features/orders/hooks/useOrdersFilter'
-import { DateFilter } from '../../features/orders/components/DateFilter'
+import { DateFilter, CreateOrderModal } from '../../features/orders/components'
 import type { OrderDto, OrderDetailDto } from '../../types'
 import { OrderStatus, UserRole } from '../../types'
 import toast from 'react-hot-toast'
@@ -53,6 +53,7 @@ const OrdersPage: FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<OrderDetailDto | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false)
+  const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false)
 
   // Check if user is admin/staff (not a regular customer)
   const isStaff = user?.roles?.some(role => ['ADMIN', 'WAITER', 'BARTENDER', 'CHEF'].includes(role)) ?? false
@@ -236,10 +237,11 @@ const OrdersPage: FC = () => {
               >
                 Actualizar
               </Button>
-              {isAdmin && (
+              {(isAdmin || isWaiter) && (
                 <Button
                   variant="primary"
                   leftIcon={<Plus className="w-4 h-4" />}
+                  onClick={() => setIsCreateOrderModalOpen(true)}
                 >
                   Nueva Orden
                 </Button>
@@ -833,6 +835,15 @@ const OrdersPage: FC = () => {
           </div>
         </div>
       )}
+
+      {/* Create Order Modal */}
+      <CreateOrderModal
+        isOpen={isCreateOrderModalOpen}
+        onClose={() => setIsCreateOrderModalOpen(false)}
+        onOrderCreated={() => {
+          fetchOrders()
+        }}
+      />
     </div>
   )
 }
