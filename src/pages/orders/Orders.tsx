@@ -1,4 +1,4 @@
-import { useState, useEffect, type FC } from 'react'
+import { useState, type FC } from 'react'
 import { 
   Users, 
   Clock, 
@@ -19,7 +19,7 @@ import { useAuth } from '../../features/auth/context/AuthContext'
 import { useOrdersFilter } from '../../features/orders/hooks/useOrdersFilter'
 import { DateFilter, CreateOrderModal } from '../../features/orders/components'
 import type { OrderDto, OrderDetailDto } from '../../types'
-import { OrderStatus, UserRole } from '../../types'
+import { OrderStatus } from '../../types'
 import toast from 'react-hot-toast'
 
 // Mock tables data - would come from backend
@@ -39,11 +39,6 @@ const tableStatusConfig = {
 }
 
 // Fallback orders for demo
-const fallbackOrders: OrderDto[] = [
-  { id: 1, clientName: 'Juan García', tableNumber: 2, waiterUserName: 'Mario', notes: '', status: OrderStatus.IN_PROGRESS, date: new Date().toISOString(), valueToPay: 32.50 },
-  { id: 2, clientName: 'Ana Martínez', tableNumber: 3, waiterUserName: 'Mario', notes: 'Sin hielo', status: OrderStatus.READY, date: new Date().toISOString(), valueToPay: 18.00 },
-  { id: 3, clientName: 'Pedro López', tableNumber: 6, waiterUserName: 'Carlos', notes: '', status: OrderStatus.PENDING, date: new Date().toISOString(), valueToPay: 45.00 },
-]
 
 const OrdersPage: FC = () => {
   const { user } = useAuth()

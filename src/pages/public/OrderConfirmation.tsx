@@ -1,6 +1,7 @@
-import { useState, useEffect, type FC } from 'react'
+import { useState, useEffect, useRef, type FC } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CheckCircle, Clock, ArrowLeft, ChefHat, Package, RefreshCw, X } from 'lucide-react'
+import { CheckCircle, Clock, ArrowLeft, ChefHat, Package, RefreshCw, Bell, Sparkles } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { orderService } from '../../features/orders/api/orderService'
 import type { OrderDto } from '../../types'
 import { OrderStatus } from '../../types'
@@ -10,24 +11,64 @@ const OrderConfirmationPage: FC = () => {
   const tableNumber = mesa ? parseInt(mesa, 10) : 0
   const [orders, setOrders] = useState<OrderDto[]>([])
   const [loading, setLoading] = useState(true)
+  const previousOrdersRef = useRef<Map<number, string>>(new Map())
+
+  // Get status label for notifications
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'CREATED': return 'recibido'
+      case 'ASSIGNED': return 'asignado a un mesero'
+      case OrderStatus.IN_PROGRESS: return 'siendo preparado'
+      case OrderStatus.READY: return '¡LISTO para entregar!'
+      case OrderStatus.DELIVERED: return 'entregado'
+      default: return 'actualizado'
+    }
+  }
 
   // Fetch orders for this table
-  const fetchOrders = async () => {
+  const fetchOrders = async (showLoading = true) => {
     if (!tableNumber) return
-    setLoading(true)
+    if (showLoading) setLoading(true)
     try {
       const data = await orderService.getByTableNumber(tableNumber)
       // Sort by date (most recent first) and filter active orders
       const sortedOrders = data
         .filter(o => 
           o.status !== OrderStatus.DELIVERED && 
-          o.status !== OrderStatus.CANCELLED
+          o.status !== OrderStatus.CANCELLED &&
+          o.status !== 'BILLED'
         )
         .sort((a, b) => {
           const dateA = new Date(a.date || a.orderDate || 0).getTime()
           const dateB = new Date(b.date || b.orderDate || 0).getTime()
           return dateB - dateA
         })
+      
+      // Check for status changes and notify
+      sortedOrders.forEach(order => {
+        const prevStatus = previousOrdersRef.current.get(order.id)
+        if (prevStatus && prevStatus !== order.status) {
+          // Status changed - show notification
+          const statusLabel = getStatusLabel(order.status as string)
+          if (order.status === OrderStatus.READY) {
+            toast.success(`🎉 ¡Tu pedido está ${statusLabel}!`, {
+              duration: 6000,
+              icon: '✨',
+            })
+          } else if (order.status === OrderStatus.IN_PROGRESS) {
+            toast(`👨‍🍳 Tu pedido está ${statusLabel}`, {
+              duration: 4000,
+              icon: '🍹',
+            })
+          } else if (order.status === 'ASSIGNED') {
+            toast(`✅ Tu pedido fue ${statusLabel}`, {
+              duration: 4000,
+            })
+          }
+        }
+        previousOrdersRef.current.set(order.id, order.status as string)
+      })
+      
       setOrders(sortedOrders)
     } catch (err) {
       console.error('Error loading orders:', err)
@@ -39,21 +80,24 @@ const OrderConfirmationPage: FC = () => {
 
   useEffect(() => {
     fetchOrders()
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchOrders, 30000)
+    // Auto-refresh every 10 seconds for real-time updates
+    const interval = setInterval(() => fetchOrders(false), 10000)
     return () => clearInterval(interval)
   }, [tableNumber])
 
   const getStatusInfo = (status: string) => {
     switch (status) {
+      case 'CREATED':
       case OrderStatus.PENDING:
-        return { label: 'Pendiente', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30', Icon: Clock }
+        return { label: 'Recibido', color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30', Icon: Clock }
+      case 'ASSIGNED':
+        return { label: 'Asignado', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30', Icon: Clock }
       case OrderStatus.IN_PROGRESS:
         return { label: 'Preparando', color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', Icon: ChefHat }
       case OrderStatus.READY:
         return { label: '¡Listo!', color: 'text-emerald-400', bg: 'bg-emerald-500/20', border: 'border-emerald-500/30', Icon: CheckCircle }
       default:
-        return { label: 'Pendiente', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30', Icon: Clock }
+        return { label: 'Recibido', color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30', Icon: Clock }
     }
   }
 
@@ -209,10 +253,16 @@ const OrderConfirmationPage: FC = () => {
           </ul>
         </div>
 
+        {/* Auto-refresh indicator */}
+        <div className="flex items-center justify-center gap-2 text-slate-500 text-sm mb-6">
+          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+          Actualizando automáticamente
+        </div>
+
         {/* Back to Menu */}
         <div className="text-center">
           <Link
-            to={`/pedido/${tableNumber}`}
+            to={`/mesa/${tableNumber}`}
             className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium"
           >
             <ArrowLeft className="w-4 h-4" />

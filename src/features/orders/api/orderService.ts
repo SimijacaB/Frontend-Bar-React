@@ -173,4 +173,36 @@ export const orderService = {
     })
     return response.data
   },
+
+  // ============================================
+  // NUEVOS MÉTODOS PARA FLUJO DE ASIGNACIÓN
+  // ============================================
+
+  /**
+   * Obtiene órdenes en estado CREATED (sin mesero asignado).
+   * Solo para ADMIN.
+   */
+  async getUnassignedOrders(): Promise<OrderDto[]> {
+    const response = await apiClient.get(API_ENDPOINTS.ORDERS.UNASSIGNED)
+    return response.data
+  },
+
+  /**
+   * Obtiene órdenes asignadas al mesero autenticado en estado ASSIGNED.
+   * Estas son las órdenes que el mesero puede empezar a atender.
+   */
+  async getMyAssignedOrders(): Promise<OrderDto[]> {
+    const response = await apiClient.get(API_ENDPOINTS.ORDERS.MY_ASSIGNED)
+    return response.data
+  },
+
+  /**
+   * Asigna un mesero a una orden en estado CREATED.
+   * Solo puede ser ejecutado por ADMIN.
+   * Cambia el estado de CREATED a ASSIGNED.
+   */
+  async assignWaiter(orderId: number, waiterUsername: string): Promise<OrderDetailDto> {
+    const response = await apiClient.patch(API_ENDPOINTS.ORDERS.ASSIGN_WAITER(orderId, waiterUsername))
+    return response.data
+  },
 }

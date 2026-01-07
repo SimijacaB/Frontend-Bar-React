@@ -15,12 +15,13 @@ import MenuPage from './pages/menu/Menu'
 import OrdersPage from './pages/orders/Orders'
 import CartPage from './pages/cart/Cart'
 import { QRGenerator } from './pages/admin'
+import OrderAssignment from './pages/admin/OrderAssignment'
 
 // Pages - Auth
 import { LoginPage, ProtectedRoute } from './features/auth/components'
 
 // Pages - Public (for customers via QR)
-import { PublicMenu } from './pages/public'
+import { PublicMenu, PublicLanding } from './pages/public'
 import CustomerMenu from './pages/public/CustomerMenu'
 import OrderConfirmationPage from './pages/public/OrderConfirmation'
 
@@ -66,8 +67,9 @@ const App: FC = () => {
             {/* ============================================ */}
             {/* PUBLIC ROUTES - For customers via QR        */}
             {/* ============================================ */}
+            <Route path="/" element={<PublicLanding />} />
             <Route path="/carta" element={<PublicMenu />} />
-            <Route path="/pedido/:mesa" element={<CustomerMenu />} />
+            <Route path="/mesa/:mesa" element={<PublicMenu />} />
             <Route path="/pedido-confirmado/:mesa" element={<OrderConfirmationPage />} />
             
             {/* ============================================ */}
@@ -80,7 +82,7 @@ const App: FC = () => {
             {/* INTERNAL/ADMIN ROUTES                       */}
             {/* ============================================ */}
             <Route
-              path="/"
+              path="/dashboard"
               element={
                 <ProtectedRoute>
                   <Layout>
@@ -125,6 +127,16 @@ const App: FC = () => {
                 <ProtectedRoute>
                   <Layout>
                     <QRGenerator />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/asignacion"
+              element={
+                <ProtectedRoute>
+                  <Layout showFooter={false}>
+                    <OrderAssignment />
                   </Layout>
                 </ProtectedRoute>
               }

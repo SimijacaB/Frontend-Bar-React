@@ -17,6 +17,18 @@ import { orderService } from '../../features/orders/api/orderService'
 import type { OrderDto } from '../../types'
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock; bgColor: string }> = {
+  CREATED: { 
+    label: 'Sin Asignar', 
+    color: 'text-purple-400', 
+    icon: Clock,
+    bgColor: 'bg-purple-500/20 border-purple-500/30'
+  },
+  ASSIGNED: { 
+    label: 'Asignado', 
+    color: 'text-amber-400', 
+    icon: Clock,
+    bgColor: 'bg-amber-500/20 border-amber-500/30'
+  },
   PENDING: { 
     label: 'Pendiente', 
     color: 'text-amber-400', 
@@ -56,25 +68,26 @@ const WaiterPanel: FC = () => {
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [lastOrderCount, setLastOrderCount] = useState(0)
 
-  // Fetch orders
+  // Fetch orders - Solo mis órdenes (asignadas a mí)
   const fetchOrders = async () => {
     try {
-      const data = await orderService.getAllOrders()
+      // Obtener MIS órdenes (no todas) - esto filtra por el mesero autenticado
+      const data = await orderService.getMyOrders()
       // Sort by date, newest first
       const sorted = data.sort((a, b) => 
-        new Date(b.orderDate || 0).getTime() - new Date(a.orderDate || 0).getTime()
+        new Date(b.orderDate || b.date || 0).getTime() - new Date(a.orderDate || a.date || 0).getTime()
       )
       
-      // Check for new orders and play sound
-      const pendingCount = sorted.filter(o => o.status === 'PENDING').length
-      if (pendingCount > lastOrderCount && lastOrderCount > 0 && soundEnabled) {
+      // Check for new orders and play sound (órdenes asignadas a mí)
+      const assignedCount = sorted.filter(o => o.status === 'ASSIGNED').length
+      if (assignedCount > lastOrderCount && lastOrderCount > 0 && soundEnabled) {
         playNotificationSound()
-        toast('🔔 ¡Nuevo pedido!', {
+        toast('🔔 ¡Nueva orden asignada!', {
           icon: '🆕',
           duration: 5000,
         })
       }
-      setLastOrderCount(pendingCount)
+      setLastOrderCount(assignedCount)
       
       setOrders(sorted)
     } catch (err) {
@@ -130,12 +143,12 @@ const WaiterPanel: FC = () => {
   // Filter orders
   const filteredOrders = orders.filter(order => {
     if (selectedStatus === 'ALL') return true
-    if (selectedStatus === 'ACTIVE') return ['PENDING', 'IN_PROGRESS', 'READY'].includes(order.status)
+    if (selectedStatus === 'ACTIVE') return ['ASSIGNED', 'IN_PROGRESS', 'READY'].includes(order.status)
     return order.status === selectedStatus
   })
 
   // Count by status
-  const pendingCount = orders.filter(o => o.status === 'PENDING').length
+  const assignedCount = orders.filter(o => o.status === 'ASSIGNED').length
   const inProgressCount = orders.filter(o => o.status === 'IN_PROGRESS').length
   const readyCount = orders.filter(o => o.status === 'READY').length
 
@@ -204,8 +217,8 @@ const WaiterPanel: FC = () => {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-2 mb-4">
             <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold text-amber-400">{pendingCount}</p>
-              <p className="text-xs text-amber-300">Pendientes</p>
+              <p className="text-2xl font-bold text-amber-400">{assignedCount}</p>
+              <p className="text-xs text-amber-300">Asignados</p>
             </div>
             <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-blue-400">{inProgressCount}</p>
@@ -222,7 +235,7 @@ const WaiterPanel: FC = () => {
             {[
               { key: 'ALL', label: 'Todos' },
               { key: 'ACTIVE', label: 'Activos' },
-              { key: 'PENDING', label: 'Pendientes' },
+              { key: 'ASSIGNED', label: 'Asignados' },
               { key: 'READY', label: 'Listos' },
               { key: 'DELIVERED', label: 'Entregados' },
             ].map(tab => (
@@ -315,16 +328,16 @@ const WaiterPanel: FC = () => {
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {/* Actions - Flujo: ASSIGNED → IN_PROGRESS → READY → DELIVERED */}
                   <div className="flex gap-2 flex-wrap">
-                    {order.status === 'PENDING' && (
+                    {order.status === 'ASSIGNED' && (
                       <>
                         <button
                           onClick={() => updateStatus(order.id, 'IN_PROGRESS')}
                           className="flex-1 py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
                         >
                           <ChefHat className="w-4 h-4" />
-                          Preparar
+                          Iniciar Preparación
                         </button>
                         <button
                           onClick={() => updateStatus(order.id, 'CANCELLED')}

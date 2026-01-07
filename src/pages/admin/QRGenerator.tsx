@@ -1,24 +1,21 @@
 import { useState, useRef, type FC } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Download, Copy, Check, ExternalLink, QrCode, ShoppingCart, Eye, Plus, Minus, Printer } from 'lucide-react'
+import { Download, Copy, Check, ExternalLink, QrCode, Plus, Minus, Printer } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import toast from 'react-hot-toast'
 
-type QRType = 'menu' | 'order'
-
 const QRGeneratorPage: FC = () => {
   const [baseUrl, setBaseUrl] = useState(window.location.origin)
   const [copied, setCopied] = useState(false)
-  const [qrType, setQrType] = useState<QRType>('order')
   const [tableCount, setTableCount] = useState(10)
   const [selectedTable, setSelectedTable] = useState(1)
   const qrRef = useRef<HTMLDivElement>(null)
 
-  const menuUrl = `${baseUrl}/carta`
-  const getOrderUrl = (table: number) => `${baseUrl}/pedido/${table}`
-  const currentUrl = qrType === 'menu' ? menuUrl : getOrderUrl(selectedTable)
+  // URL pattern: /mesa/{numero}
+  const getTableUrl = (table: number) => `${baseUrl}/mesa/${table}`
+  const currentUrl = getTableUrl(selectedTable)
 
   const handleCopyLink = async () => {
     try {
@@ -56,9 +53,7 @@ const QRGeneratorPage: FC = () => {
       
       // Descargar
       const link = document.createElement('a')
-      const filename = qrType === 'menu' 
-        ? 'projectbar-menu-qr.png' 
-        : `projectbar-mesa-${selectedTable}-qr.png`
+      const filename = `projectbar-mesa-${selectedTable}-qr.png`
       link.download = filename
       link.href = canvas.toDataURL('image/png')
       link.click()
@@ -108,20 +103,14 @@ const QRGeneratorPage: FC = () => {
       ctx.font = 'bold 24px system-ui'
       ctx.textAlign = 'center'
       
-      if (qrType === 'menu') {
-        ctx.fillText('Escanea para ver el menú', size / 2, size + 50)
-      } else {
-        ctx.fillText(`Mesa ${selectedTable}`, size / 2, size + 45)
-        ctx.font = '18px system-ui'
-        ctx.fillStyle = '#94a3b8'
-        ctx.fillText('Escanea para hacer tu pedido', size / 2, size + 75)
-      }
+      ctx.fillText(`Mesa ${selectedTable}`, size / 2, size + 45)
+      ctx.font = '18px system-ui'
+      ctx.fillStyle = '#94a3b8'
+      ctx.fillText('Escanea para hacer tu pedido', size / 2, size + 75)
       
       // Descargar
       const link = document.createElement('a')
-      const filename = qrType === 'menu' 
-        ? 'projectbar-menu-poster.png' 
-        : `projectbar-mesa-${selectedTable}-poster.png`
+      const filename = `projectbar-mesa-${selectedTable}-poster.png`
       link.download = filename
       link.href = canvas.toDataURL('image/png')
       link.click()
@@ -167,103 +156,68 @@ const QRGeneratorPage: FC = () => {
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Generador de Códigos QR</h1>
           <p className="text-slate-400">
-            Genera códigos QR para que tus clientes vean el menú o hagan pedidos
+            Genera códigos QR para cada mesa de tu bar
           </p>
         </div>
-
-        {/* QR Type Selector */}
-        <div className="flex justify-center gap-4 mb-8">
-          <button
-            onClick={() => setQrType('menu')}
-            className={`flex items-center gap-3 px-6 py-4 rounded-2xl border-2 transition-all ${
-              qrType === 'menu'
-                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
-            }`}
-          >
-            <Eye className="w-5 h-5" />
-            <div className="text-left">
-              <p className="font-semibold">Solo Ver Menú</p>
-              <p className="text-xs opacity-70">/carta</p>
-            </div>
-          </button>
-          <button
-            onClick={() => setQrType('order')}
-            className={`flex items-center gap-3 px-6 py-4 rounded-2xl border-2 transition-all ${
-              qrType === 'order'
-                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
-            }`}
-          >
-            <ShoppingCart className="w-5 h-5" />
-            <div className="text-left">
-              <p className="font-semibold">Hacer Pedido</p>
-              <p className="text-xs opacity-70">/pedido/:mesa</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Table Selector (only for order type) */}
-        {qrType === 'order' && (
-          <Card className="mb-6">
-            <CardContent className="py-4">
-              <div className="flex flex-wrap items-center justify-center gap-4">
+        
+        {/* Table Selector */}
+        <Card className="mb-6">
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Número de mesas:</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-slate-400">Número de mesas:</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setTableCount(Math.max(1, tableCount - 1))}
-                      className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg"
-                    >
-                      <Minus className="w-4 h-4 text-slate-400" />
-                    </button>
-                    <span className="w-12 text-center text-white font-bold">{tableCount}</span>
-                    <button
-                      onClick={() => setTableCount(Math.min(100, tableCount + 1))}
-                      className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg"
-                    >
-                      <Plus className="w-4 h-4 text-slate-400" />
-                    </button>
-                  </div>
-                </div>
-                <Button
-                  onClick={handleDownloadAllTables}
-                  variant="secondary"
-                  leftIcon={<Printer className="w-4 h-4" />}
-                >
-                  Descargar QRs de todas las mesas
-                </Button>
-              </div>
-              
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {Array.from({ length: tableCount }, (_, i) => i + 1).map((table) => (
                   <button
-                    key={table}
-                    onClick={() => setSelectedTable(table)}
-                    className={`w-12 h-12 rounded-xl font-bold transition-all ${
-                      selectedTable === table
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                    }`}
+                    onClick={() => setTableCount(Math.max(1, tableCount - 1))}
+                    className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg"
                   >
-                    {table}
+                    <Minus className="w-4 h-4 text-slate-400" />
                   </button>
-                ))}
+                  <span className="w-12 text-center text-white font-bold">{tableCount}</span>
+                  <button
+                    onClick={() => setTableCount(Math.min(100, tableCount + 1))}
+                    className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg"
+                  >
+                    <Plus className="w-4 h-4 text-slate-400" />
+                  </button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <Button
+                onClick={handleDownloadAllTables}
+                variant="secondary"
+                leftIcon={<Printer className="w-4 h-4" />}
+              >
+                Descargar QRs de todas las mesas
+              </Button>
+            </div>
+            
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {Array.from({ length: tableCount }, (_, i) => i + 1).map((table) => (
+                <button
+                  key={table}
+                  onClick={() => setSelectedTable(table)}
+                  className={`w-12 h-12 rounded-xl font-bold transition-all ${
+                    selectedTable === table
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  {table}
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid md:grid-cols-2 gap-6">
           {/* QR Preview */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 Vista Previa
-                {qrType === 'order' && (
-                  <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full">
-                    Mesa {selectedTable}
-                  </span>
-                )}
+                <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full">
+                  Mesa {selectedTable}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -283,7 +237,7 @@ const QRGeneratorPage: FC = () => {
               
               <div className="mt-4 p-3 bg-slate-800/50 rounded-xl">
                 <p className="text-slate-400 text-sm mb-1">
-                  URL {qrType === 'menu' ? 'del menú' : 'de pedidos'}:
+                  URL de la mesa:
                 </p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 text-emerald-400 text-sm truncate">

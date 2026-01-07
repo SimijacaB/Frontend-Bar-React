@@ -14,7 +14,7 @@ export default function LoginPage() {
   const location = useLocation()
 
   // Get the redirect path from state or default to dashboard
-  const from = (location.state as { from?: string })?.from || '/'
+  const from = (location.state as { from?: string })?.from || '/dashboard'
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -84,8 +84,8 @@ export default function LoginPage() {
         </form>
 
         <div className="login-footer">
-          <a href="/menu" className="menu-link">
-            ← Volver al menú público
+          <a href="/" className="menu-link">
+            ← Volver al inicio
           </a>
         </div>
       </div>

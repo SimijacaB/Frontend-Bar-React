@@ -32,6 +32,10 @@ export const API_ENDPOINTS = {
     BY_DATE_RANGE: `${API_BASE_URL}/api/order/date-range`,
     MY_ORDERS: `${API_BASE_URL}/api/order/my-orders`,
     MY_ORDERS_DATE_RANGE: `${API_BASE_URL}/api/order/my-orders/date-range`,
+    MY_ASSIGNED: `${API_BASE_URL}/api/order/my-assigned`,
+    UNASSIGNED: `${API_BASE_URL}/api/order/unassigned`,
+    ASSIGN_WAITER: (orderId: number, waiterUsername: string) =>
+      `${API_BASE_URL}/api/order/assign/${orderId}/${waiterUsername}`,
     SAVE: `${API_BASE_URL}/api/order/save`,
     UPDATE: `${API_BASE_URL}/api/order/update`,
     ADD_ITEM: (orderId: number) => `${API_BASE_URL}/api/order/add-order-item/${orderId}`,

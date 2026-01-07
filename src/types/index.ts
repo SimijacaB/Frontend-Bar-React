@@ -11,11 +11,15 @@ export const Category = {
 export type Category = typeof Category[keyof typeof Category]
 
 export const OrderStatus = {
+  CREATED: 'CREATED',         // Pedido cliente QR - sin mesero
+  ASSIGNED: 'ASSIGNED',       // Admin asignó mesero
+  IN_PROGRESS: 'IN_PROGRESS', // En preparación
+  READY: 'READY',             // Listo para entregar
+  DELIVERED: 'DELIVERED',     // Entregado
+  CANCELLED: 'CANCELLED',     // Cancelado
+  BILLED: 'BILLED',           // Facturado
+  // Legacy - para compatibilidad
   PENDING: 'PENDING',
-  READY: 'READY',
-  IN_PROGRESS: 'IN_PROGRESS',
-  CANCELLED: 'CANCELLED',
-  DELIVERED: 'DELIVERED',
 } as const
 
 export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus]

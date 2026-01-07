@@ -1,5 +1,5 @@
 import { useState, useEffect, type FC } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { 
   ShoppingCart, 
   Plus, 
@@ -17,7 +17,8 @@ import {
   CheckCircle,
   ChefHat,
   Package,
-  QrCode
+  QrCode,
+  ArrowLeft
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { productService } from '../../features/products/api/productService'
@@ -230,19 +231,53 @@ const CustomerMenu: FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Show QR prompt if no table from QR */}
       {!hasTableFromQR ? (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="text-center max-w-sm">
-            <div className="w-24 h-24 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <QrCode className="w-12 h-12 text-emerald-400" />
+        <div className="min-h-screen flex flex-col">
+          {/* Header */}
+          <header className="bg-slate-900/95 border-b border-slate-700/50 px-4 py-4">
+            <div className="flex items-center gap-3">
+              <Link to="/bienvenido" className="p-2 hover:bg-slate-800 rounded-lg">
+                <ArrowLeft className="w-5 h-5 text-slate-400" />
+              </Link>
+              <div>
+                <h1 className="text-lg font-bold text-white">Mi Pedido</h1>
+                <p className="text-slate-500 text-xs">Consulta tus órdenes</p>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-white mb-3">Escanea el código QR</h1>
-            <p className="text-slate-400 mb-6">
-              Para hacer tu pedido, escanea el código QR que se encuentra en tu mesa.
-            </p>
-            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
-              <p className="text-slate-500 text-sm">
-                El código QR contiene el número de tu mesa y te permitirá ver el menú y hacer pedidos.
+          </header>
+
+          {/* Content */}
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="text-center max-w-sm">
+              <div className="w-24 h-24 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <QrCode className="w-12 h-12 text-emerald-400" />
+              </div>
+              <h1 className="text-2xl font-bold text-white mb-3">Escanea el código QR</h1>
+              <p className="text-slate-400 mb-6">
+                Para hacer tu pedido, escanea el código QR que se encuentra en tu mesa.
               </p>
+              <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 mb-6">
+                <p className="text-slate-500 text-sm">
+                  El código QR contiene el número de tu mesa y te permitirá ver el menú y hacer pedidos.
+                </p>
+              </div>
+              
+              {/* Quick actions */}
+              <div className="space-y-3">
+                <Link
+                  to="/carta"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium"
+                >
+                  <Wine className="w-5 h-5" />
+                  Ver Carta Completa
+                </Link>
+                <Link
+                  to="/bienvenido"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Volver al Inicio
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -263,9 +298,17 @@ const CustomerMenu: FC = () => {
                 className="relative p-3 bg-amber-500 rounded-full text-white shadow-lg"
               >
                 <Clock className="w-6 h-6" />
-                {myOrders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED).length > 0 && (
+                {myOrders.filter(o => 
+                  o.status !== OrderStatus.DELIVERED && 
+                  o.status !== OrderStatus.CANCELLED &&
+                  o.status !== 'BILLED'
+                ).length > 0 && (
                   <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full text-xs flex items-center justify-center font-bold">
-                    {myOrders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELLED).length}
+                    {myOrders.filter(o => 
+                      o.status !== OrderStatus.DELIVERED && 
+                      o.status !== OrderStatus.CANCELLED &&
+                      o.status !== 'BILLED'
+                    ).length}
                   </span>
                 )}
               </button>
@@ -533,12 +576,23 @@ const CustomerMenu: FC = () => {
               ) : (
                 <div className="space-y-4">
                   {myOrders.map((order) => {
-                    let statusBg = 'bg-amber-500/20 border-amber-500/30'
-                    let statusText = 'text-amber-400'
-                    let statusLabel = 'Pendiente'
+                    let statusBg = 'bg-purple-500/20 border-purple-500/30'
+                    let statusText = 'text-purple-400'
+                    let statusLabel = 'Recibido'
                     let StatusIcon = Clock
 
-                    if (order.status === OrderStatus.IN_PROGRESS) {
+                    // CREATED = Pedido recibido, esperando asignación
+                    if (order.status === 'CREATED' || order.status === OrderStatus.PENDING) {
+                      statusBg = 'bg-purple-500/20 border-purple-500/30'
+                      statusText = 'text-purple-400'
+                      statusLabel = 'Recibido'
+                      StatusIcon = Clock
+                    } else if (order.status === 'ASSIGNED') {
+                      statusBg = 'bg-amber-500/20 border-amber-500/30'
+                      statusText = 'text-amber-400'
+                      statusLabel = 'Asignado'
+                      StatusIcon = Clock
+                    } else if (order.status === OrderStatus.IN_PROGRESS) {
                       statusBg = 'bg-cyan-500/20 border-cyan-500/30'
                       statusText = 'text-cyan-400'
                       statusLabel = 'Preparando'
