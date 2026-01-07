@@ -14,7 +14,7 @@ import Landing from './pages/landing/Landing'
 import MenuPage from './pages/menu/Menu'
 import OrdersPage from './pages/orders/Orders'
 import CartPage from './pages/cart/Cart'
-import { QRGenerator } from './pages/admin'
+import { QRGenerator, TableManagement } from './pages/admin'
 import OrderAssignment from './pages/admin/OrderAssignment'
 
 // Pages - Auth
@@ -137,6 +137,16 @@ const App: FC = () => {
                 <ProtectedRoute>
                   <Layout showFooter={false}>
                     <OrderAssignment />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/mesas"
+              element={
+                <ProtectedRoute>
+                  <Layout showFooter={false}>
+                    <TableManagement />
                   </Layout>
                 </ProtectedRoute>
               }

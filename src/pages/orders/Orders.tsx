@@ -1,4 +1,4 @@
-import { useState, type FC } from 'react'
+import { useState, useEffect, type FC } from 'react'
 import { 
   Users, 
   Clock, 
@@ -22,20 +22,12 @@ import type { OrderDto, OrderDetailDto } from '../../types'
 import { OrderStatus } from '../../types'
 import toast from 'react-hot-toast'
 
-// Mock tables data - would come from backend
-const tables = [
-  { id: 1, number: 1, seats: 4, status: 'available' },
-  { id: 2, number: 2, seats: 2, status: 'occupied' },
-  { id: 3, number: 3, seats: 6, status: 'occupied' },
-  { id: 4, number: 4, seats: 4, status: 'reserved' },
-  { id: 5, number: 5, seats: 8, status: 'available' },
-  { id: 6, number: 6, seats: 4, status: 'occupied' },
-]
+import { tableService, type TableDto } from '../../features/tables/api/tableService'
 
 const tableStatusConfig = {
-  available: { label: 'Disponible', color: 'bg-emerald-500' },
-  occupied: { label: 'Ocupada', color: 'bg-amber-500' },
-  reserved: { label: 'Reservada', color: 'bg-cyan-500' },
+  FREE: { label: 'Disponible', color: 'bg-emerald-500' },
+  OCCUPIED: { label: 'Ocupada', color: 'bg-amber-500' },
+  RESERVED: { label: 'Reservada', color: 'bg-cyan-500' },
 }
 
 // Fallback orders for demo
@@ -49,6 +41,8 @@ const OrdersPage: FC = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false)
   const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false)
+  const [tables, setTables] = useState<TableDto[]>([])
+  const [loadingTables, setLoadingTables] = useState(true)
 
   // Check if user is admin/staff (not a regular customer)
   const isStaff = user?.roles?.some(role => ['ADMIN', 'WAITER', 'BARTENDER', 'CHEF'].includes(role)) ?? false
@@ -69,6 +63,26 @@ const OrdersPage: FC = () => {
     autoFetch: true,
     refreshInterval: 10000, // Auto-refresh cada 10 segundos
   })
+
+  // Cargar mesas
+  useEffect(() => {
+    const loadTables = async () => {
+      try {
+        setLoadingTables(true)
+        const data = await tableService.getAll()
+        setTables(data)
+      } catch (err) {
+        console.error('Error loading tables:', err)
+        toast.error('Error al cargar mesas')
+      } finally {
+        setLoadingTables(false)
+      }
+    }
+    loadTables()
+    // Auto-refresh cada 15 segundos
+    const interval = setInterval(loadTables, 15000)
+    return () => clearInterval(interval)
+  }, [])
   
   // Get table number from user if they're a customer (would come from localStorage or context)
   const customerTableNumber = !isStaff ? selectedTable : null
@@ -87,7 +101,7 @@ const OrdersPage: FC = () => {
 
   // Get orders count by status
   const ordersByStatus = {
-    pending: orders.filter(o => o.status === OrderStatus.PENDING).length,
+    pending: orders.filter(o => o.status === OrderStatus.CREATED || o.status === 'CREATED').length,
     inProgress: orders.filter(o => o.status === OrderStatus.IN_PROGRESS).length,
     ready: orders.filter(o => o.status === OrderStatus.READY).length,
   }
@@ -329,35 +343,46 @@ const OrdersPage: FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3">
-                    {tables.map((table) => {
-                      const config = tableStatusConfig[table.status as keyof typeof tableStatusConfig]
-                      const isSelected = selectedTable === table.number
-                      const tableOrders = orders.filter(o => o.tableNumber === table.number)
+                    {loadingTables ? (
+                      <div className="text-center py-4 text-slate-400">Cargando mesas...</div>
+                    ) : tables.length === 0 ? (
+                      <div className="text-center py-4 text-slate-400">No hay mesas registradas</div>
+                    ) : (
+                      tables.map((table) => {
+                        const statusConfig = tableStatusConfig[table.status] || tableStatusConfig.FREE
+                        const isSelected = selectedTable === table.number
+                        const tableOrders = orders.filter(o => o.tableNumber === table.number)
 
-                      return (
-                        <button
-                          key={table.id}
-                          onClick={() => setSelectedTable(isSelected ? null : table.number)}
-                          className={`p-4 rounded-xl border-2 transition-all text-left ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-500/10'
-                              : 'border-slate-700 hover:border-slate-600 bg-slate-800/50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-lg font-bold text-white">Mesa {table.number}</span>
-                            <span className={`w-2 h-2 rounded-full ${config.color}`} />
-                          </div>
-                          <p className="text-slate-400 text-sm">{table.seats} asientos</p>
-                          <p className="text-xs text-slate-500 mt-1">{config.label}</p>
-                          {tableOrders.length > 0 && (
-                            <Badge variant="info" className="mt-2">
-                              {tableOrders.length} orden{tableOrders.length > 1 ? 'es' : ''}
-                            </Badge>
-                          )}
-                        </button>
-                      )
-                    })}
+                        return (
+                          <button
+                            key={table.id}
+                            onClick={() => setSelectedTable(isSelected ? null : table.number)}
+                            className={`p-4 rounded-xl border-2 transition-all text-left ${
+                              isSelected
+                                ? 'border-emerald-500 bg-emerald-500/10'
+                                : 'border-slate-700 hover:border-slate-600 bg-slate-800/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-lg font-bold text-white">Mesa {table.number}</span>
+                              <span className={`w-2 h-2 rounded-full ${statusConfig.color}`} />
+                            </div>
+                            <p className="text-slate-400 text-sm">{table.capacity} asientos</p>
+                            <p className="text-xs text-slate-500 mt-1">{statusConfig.label}</p>
+                            {tableOrders.length > 0 && (
+                              <Badge variant="info" className="mt-2">
+                                {tableOrders.length} orden{tableOrders.length > 1 ? 'es' : ''}
+                              </Badge>
+                            )}
+                            {table.activeOrdersCount !== undefined && table.activeOrdersCount > 0 && (
+                              <p className="text-xs text-amber-400 mt-1">
+                                {table.activeOrdersCount} activa{table.activeOrdersCount > 1 ? 's' : ''}
+                              </p>
+                            )}
+                          </button>
+                        )
+                      })
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -386,7 +411,7 @@ const OrdersPage: FC = () => {
                       >
                         Todos
                       </button>
-                      {[OrderStatus.PENDING, OrderStatus.IN_PROGRESS, OrderStatus.READY].map((status) => (
+                      {[OrderStatus.CREATED, OrderStatus.IN_PROGRESS, OrderStatus.READY].map((status) => (
                         <button
                           key={status}
                           onClick={() => setStatusFilter(status)}
@@ -396,7 +421,7 @@ const OrdersPage: FC = () => {
                               : 'bg-slate-700 text-slate-400 hover:text-white'
                           }`}
                         >
-                          {status === OrderStatus.PENDING && 'Pendiente'}
+                          {status === OrderStatus.CREATED && 'Pendiente'}
                           {status === OrderStatus.IN_PROGRESS && 'En Prep.'}
                           {status === OrderStatus.READY && 'Listo'}
                         </button>
@@ -455,7 +480,7 @@ const OrdersPage: FC = () => {
                                 >
                                   Ver
                                 </Button>
-                                {order.status === OrderStatus.PENDING && (
+                                {order.status === OrderStatus.CREATED && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -784,7 +809,7 @@ const OrdersPage: FC = () => {
 
             {/* Modal Footer */}
             <div className="p-6 border-t border-slate-700 flex gap-3">
-              {selectedOrder.status === OrderStatus.PENDING && (
+              {selectedOrder.status === OrderStatus.CREATED && (
                 <Button
                   variant="primary"
                   className="flex-1"

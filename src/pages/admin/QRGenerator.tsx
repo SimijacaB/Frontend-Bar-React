@@ -298,31 +298,20 @@ const QRGeneratorPage: FC = () => {
                   className="flex items-center justify-center gap-2 w-full px-4 py-2 rounded-xl border-2 border-slate-700 text-slate-300 font-medium hover:border-emerald-500 hover:text-emerald-400 transition-all"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  {qrType === 'menu' ? 'Ver Menú Público' : 'Probar Sistema de Pedidos'}
+                  Probar Sistema de Pedidos
                 </a>
               </div>
 
               <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
                 <h4 className="text-emerald-400 font-medium mb-2">
-                  💡 {qrType === 'menu' ? 'Sugerencias de uso' : 'Sistema de Pedidos por Mesa'}
+                  💡 Sistema de Pedidos por Mesa
                 </h4>
                 <ul className="text-slate-400 text-sm space-y-1">
-                  {qrType === 'menu' ? (
-                    <>
-                      <li>• Imprime el QR y colócalo en cada mesa</li>
-                      <li>• Agrégalo a tu menú físico</li>
-                      <li>• Ponlo en la entrada del bar</li>
-                      <li>• Compártelo en redes sociales</li>
-                    </>
-                  ) : (
-                    <>
-                      <li>• Cada mesa tiene su propio QR único</li>
-                      <li>• El cliente escanea y hace su pedido</li>
-                      <li>• Solo necesita ingresar su nombre</li>
-                      <li>• El pedido llega al panel de meseros</li>
-                      <li>• El pago se hace directamente con el mesero</li>
-                    </>
-                  )}
+                  <li>• Cada mesa tiene su propio QR único</li>
+                  <li>• El cliente escanea y hace su pedido</li>
+                  <li>• Solo necesita ingresar su nombre</li>
+                  <li>• El pedido llega al panel de meseros</li>
+                  <li>• El pago se hace directamente con el mesero</li>
                 </ul>
               </div>
             </CardContent>
@@ -333,7 +322,7 @@ const QRGeneratorPage: FC = () => {
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>
-              Vista Móvil - {qrType === 'menu' ? 'Menú' : `Mesa ${selectedTable}`}
+              Vista Móvil - Mesa {selectedTable}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -343,7 +332,7 @@ const QRGeneratorPage: FC = () => {
                 <div className="w-[300px] h-[600px] bg-slate-800 rounded-[40px] p-3 shadow-2xl border-4 border-slate-700">
                   <div className="w-full h-full rounded-[28px] overflow-hidden bg-slate-900">
                     <iframe
-                      src={qrType === 'menu' ? '/carta' : `/pedido/${selectedTable}`}
+                      src={`/mesa/${selectedTable}`}
                       className="w-full h-full border-0"
                       title="Preview"
                     />

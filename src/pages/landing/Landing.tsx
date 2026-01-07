@@ -1,6 +1,6 @@
 import type { FC } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Star, Clock, Users, Wine, UtensilsCrossed, QrCode, Bell, BarChart3, Users as UsersIcon, ClipboardList } from 'lucide-react'
+import { ArrowRight, Star, Clock, Users, Wine, UtensilsCrossed, QrCode, Bell, BarChart3, Users as UsersIcon, ClipboardList, MapPin } from 'lucide-react'
 import { useAuth } from '../../features/auth/context/AuthContext'
 
 const Landing: FC = () => {
@@ -51,6 +51,22 @@ const Landing: FC = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-white">Menú</h3>
                     <p className="text-slate-400 text-sm">Administrar productos</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+              </Link>
+
+              <Link
+                to="/admin/mesas"
+                className="group p-6 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-emerald-500/50 transition-all"
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <MapPin className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Mesas</h3>
+                    <p className="text-slate-400 text-sm">Gestionar mesas del restaurante</p>
                   </div>
                 </div>
                 <ArrowRight className="w-5 h-5 text-emerald-400 group-hover:translate-x-1 transition-transform" />

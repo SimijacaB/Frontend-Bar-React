@@ -28,9 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = response.data
       // Map the response to UserDto format
       const userData: UserDto = {
-        id: 0, // Dummy ID since not provided
         username: data.username,
-        email: '', // Dummy email since not provided
+        email: data.email || '', // Use email from response or empty string
         roles: data.roles
           .filter((role: string) => role.startsWith('ROLE_'))
           .map((role: string) => role.replace('ROLE_', ''))

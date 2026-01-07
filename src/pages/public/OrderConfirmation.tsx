@@ -88,7 +88,7 @@ const OrderConfirmationPage: FC = () => {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'CREATED':
-      case OrderStatus.PENDING:
+      case OrderStatus.CREATED:
         return { label: 'Recibido', color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30', Icon: Clock }
       case 'ASSIGNED':
         return { label: 'Asignado', color: 'text-amber-400', bg: 'bg-amber-500/20', border: 'border-amber-500/30', Icon: Clock }
@@ -144,7 +144,7 @@ const OrderConfirmationPage: FC = () => {
               Mis Pedidos
             </h2>
             <button 
-              onClick={fetchOrders}
+              onClick={() => fetchOrders()}
               className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />

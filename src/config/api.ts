@@ -65,6 +65,18 @@ export const API_ENDPOINTS = {
   INGREDIENTS: {
     ALL: `${API_BASE_URL}/api/ingredient/all`,
   },
+
+  // Order Tables (Mesas)
+  TABLES: {
+    ALL: `${API_BASE_URL}/api/order-table/all`,
+    BY_ID: (id: number) => `${API_BASE_URL}/api/order-table/${id}`,
+    BY_NUMBER: (number: number) => `${API_BASE_URL}/api/order-table/number/${number}`,
+    BY_STATUS: (status: string) => `${API_BASE_URL}/api/order-table/status/${status}`,
+    CREATE: `${API_BASE_URL}/api/order-table`,
+    UPDATE: (id: number) => `${API_BASE_URL}/api/order-table/${id}`,
+    UPDATE_STATUS: (id: number) => `${API_BASE_URL}/api/order-table/${id}/status`,
+    DELETE: (id: number) => `${API_BASE_URL}/api/order-table/${id}`,
+  },
 } as const
 
 export default API_BASE_URL

@@ -582,7 +582,7 @@ const CustomerMenu: FC = () => {
                     let StatusIcon = Clock
 
                     // CREATED = Pedido recibido, esperando asignación
-                    if (order.status === 'CREATED' || order.status === OrderStatus.PENDING) {
+                    if (order.status === 'CREATED' || order.status === OrderStatus.CREATED) {
                       statusBg = 'bg-purple-500/20 border-purple-500/30'
                       statusText = 'text-purple-400'
                       statusLabel = 'Recibido'
