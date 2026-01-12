@@ -1,58 +1,93 @@
-.site-header{position:sticky;top:0;z-index:30;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
-.header-inner{display:flex;align-items:center;justify-content:space-between}
-.nav{display:flex;gap:12px}
-.nav a{color:var(--muted);text-decoration:none;padding:8px;border-radius:8px}
-.nav a:hover{color:var(--primary);background:rgba(255,255,255,0.02)}
-.actions .btn{padding:8px 12px}
-
-@media(max-width:700px){
-  .nav{position:absolute;top:64px;right:16px;background:var(--card);padding:12px;border-radius:10px;display:none;flex-direction:column;min-width:160px;box-shadow:0 6px 18px rgba(0,0,0,0.4)}
-  .nav.open{display:flex}
-  .hamburger{display:inline-flex;margin-left:8px;background:transparent;border:0;padding:8px;border-radius:8px}
-  .hamburger .bar{width:18px;height:2px;background:var(--muted);display:block;margin:3px 0;border-radius:2px}
-  .actions{display:flex;align-items:center}
-}
+/* Header Styles */
 .site-header {
     position: sticky;
     top: 0;
     z-index: 30;
     padding: 12px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03)
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    background: var(--background, #0a0a0a);
 }
 
 .header-inner {
     display: flex;
     align-items: center;
-    justify-content: space-between
+    justify-content: space-between;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-circle {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--primary, #ff8c42), #ff6b35);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+.logo-circle svg {
+    width: 24px;
+    height: 24px;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.brand-text strong {
+    font-size: 1.1rem;
+    color: var(--foreground, #fff);
+    letter-spacing: -0.5px;
+}
+
+.brand-text small {
+    font-size: 0.75rem;
+    color: var(--muted, #888);
+    font-weight: 400;
 }
 
 .nav {
     display: flex;
-    gap: 12px
+    gap: 12px;
 }
 
 .nav a {
-    color: var(--muted);
+    color: var(--muted, #888);
     text-decoration: none;
     padding: 8px;
-    border-radius: 8px
+    border-radius: 8px;
 }
 
 .nav a:hover {
-    color: var(--primary);
-    background: rgba(255, 255, 255, 0.02)
+    color: var(--primary, #ff8c42);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .actions .btn {
-    padding: 8px 12px
+    padding: 8px 12px;
 }
 
-@media(max-width:700px) {
+.hamburger {
+    display: none;
+}
+
+@media (max-width: 700px) {
     .nav {
         position: absolute;
         top: 64px;
         right: 16px;
-        background: var(--card);
+        background: var(--card, #1a1a1a);
         padding: 12px;
         border-radius: 10px;
         display: none;
@@ -62,29 +97,35 @@
     }
 
     .nav.open {
-        display: flex
+        display: flex;
     }
 
     .hamburger {
         display: inline-flex;
+        flex-direction: column;
         margin-left: 8px;
         background: transparent;
         border: 0;
         padding: 8px;
-        border-radius: 8px
+        border-radius: 8px;
+        cursor: pointer;
     }
 
     .hamburger .bar {
         width: 18px;
         height: 2px;
-        background: var(--muted);
+        background: var(--muted, #888);
         display: block;
         margin: 3px 0;
-        border-radius: 2px
+        border-radius: 2px;
     }
 
     .actions {
         display: flex;
-        align-items: center
+        align-items: center;
+    }
+
+    .brand-text small {
+        display: none;
     }
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FC } from 'react'
 import './header.css'
+import beerIcon from '../../assets/icons/Beer Icon 48.png'
 
 const Header: FC = () => {
     const [open, setOpen] = useState(false)
@@ -9,10 +10,12 @@ const Header: FC = () => {
         <header className="site-header">
             <div className="container header-inner">
                 <div className="brand">
-                    <div className="logo-circle">PB</div>
+                    <div className="logo-circle">
+                        <img src={beerIcon} alt="Project Bar" width="24" height="24" />
+                    </div>
                     <div className="brand-text">
                         <strong>Project Bar</strong>
-                        <small>Cocktails & Tapas</small>
+                        <small>Bar & Cocktails</small>
                     </div>
                 </div>
 

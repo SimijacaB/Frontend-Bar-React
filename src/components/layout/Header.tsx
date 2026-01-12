@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, X, ShoppingCart, User, LogOut } from 'lucide-react'
 import { useCart } from '../../features/products/context/CartContext'
 import { useAuth } from '../../features/auth/context/AuthContext'
+import beerIcon from '../../assets/icons/Beer Icon 48.png'
 
 const Header: FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -29,11 +30,11 @@ const Header: FC = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-500/25 group-hover:shadow-emerald-500/40 transition-shadow">
-              PB
+              <img src={beerIcon} alt="Project Bar" className="w-6 h-6 md:w-7 md:h-7" />
             </div>
             <div className="hidden sm:block">
               <h1 className="font-bold text-white text-lg leading-tight">Project Bar</h1>
-              <p className="text-xs text-slate-400">Cocktails & Tapas</p>
+              <p className="text-xs text-slate-400">Bar & Cocktails</p>
             </div>
           </Link>
 

@@ -37,10 +37,13 @@ interface OrderStatusBadgeProps {
 
 const OrderStatusBadge: FC<OrderStatusBadgeProps> = ({ status, className = '' }) => {
   const statusConfig: Record<string, { variant: BadgeProps['variant']; label: string; icon: React.ReactNode }> = {
+    CREATED: { variant: 'warning', label: 'Nuevo', icon: <AlertCircle className="w-3 h-3 mr-1" /> },
+    ASSIGNED: { variant: 'info', label: 'Asignado', icon: <Info className="w-3 h-3 mr-1" /> },
     PENDING: { variant: 'warning', label: 'Pendiente', icon: <AlertCircle className="w-3 h-3 mr-1" /> },
     IN_PROGRESS: { variant: 'info', label: 'En preparación', icon: <Info className="w-3 h-3 mr-1" /> },
     READY: { variant: 'success', label: 'Listo', icon: <CheckCircle className="w-3 h-3 mr-1" /> },
     DELIVERED: { variant: 'default', label: 'Entregado', icon: <CheckCircle className="w-3 h-3 mr-1" /> },
+    BILLED: { variant: 'default', label: 'Facturado', icon: <CheckCircle className="w-3 h-3 mr-1" /> },
     CANCELLED: { variant: 'danger', label: 'Cancelado', icon: <XCircle className="w-3 h-3 mr-1" /> },
   }
 
