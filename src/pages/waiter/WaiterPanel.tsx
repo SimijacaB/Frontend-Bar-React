@@ -121,12 +121,25 @@ const WaiterPanel: FC = () => {
     }
   }
 
-  // Auto-refresh every 10 seconds
+  // Cargar órdenes al montar
   useEffect(() => {
     fetchOrders()
-    const interval = setInterval(fetchOrders, 10000)
-    return () => clearInterval(interval)
   }, [soundEnabled])
+
+  // Estados activos que requieren monitoreo
+  const ACTIVE_STATUSES = ['CREATED', 'ASSIGNED', 'IN_PROGRESS', 'READY']
+
+  // Auto-refresh solo cuando hay órdenes activas del mesero
+  useEffect(() => {
+    const hasActiveOrders = orders.some(order => 
+      ACTIVE_STATUSES.includes(order.status as string)
+    )
+    
+    if (hasActiveOrders) {
+      const interval = setInterval(fetchOrders, 15000)
+      return () => clearInterval(interval)
+    }
+  }, [orders])
 
   // Update order status
   const updateStatus = async (orderId: number, newStatus: string) => {

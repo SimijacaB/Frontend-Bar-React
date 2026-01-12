@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type FC } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CheckCircle, Clock, ArrowLeft, ChefHat, Package, RefreshCw, Bell, Sparkles } from 'lucide-react'
+import { CheckCircle, Clock, ArrowLeft, ChefHat, Package, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { orderService } from '../../features/orders/api/orderService'
 import type { OrderDto } from '../../types'
@@ -78,12 +78,24 @@ const OrderConfirmationPage: FC = () => {
     }
   }
 
+  // Estados activos que requieren monitoreo
+  const ACTIVE_STATUSES = ['CREATED', 'ASSIGNED', 'IN_PROGRESS', 'READY']
+
   useEffect(() => {
     fetchOrders()
-    // Auto-refresh every 10 seconds for real-time updates
-    const interval = setInterval(() => fetchOrders(false), 10000)
-    return () => clearInterval(interval)
   }, [tableNumber])
+
+  // Auto-refresh solo cuando hay órdenes activas (cliente esperando su pedido)
+  useEffect(() => {
+    const hasActiveOrders = orders.some(order => 
+      ACTIVE_STATUSES.includes(order.status as string)
+    )
+    
+    if (hasActiveOrders) {
+      const interval = setInterval(() => fetchOrders(false), 10000)
+      return () => clearInterval(interval)
+    }
+  }, [orders])
 
   const getStatusInfo = (status: string) => {
     switch (status) {

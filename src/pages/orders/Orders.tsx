@@ -10,14 +10,15 @@ import {
   Filter,
   Receipt,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  UserPlus
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, OrderStatusBadge, LoadingState } from '../../components/ui'
 import Button from '../../components/ui/Button'
 import { orderService } from '../../features/orders/api/orderService'
 import { useAuth } from '../../features/auth/context/AuthContext'
 import { useOrdersFilter } from '../../features/orders/hooks/useOrdersFilter'
-import { DateFilter, CreateOrderModal } from '../../features/orders/components'
+import { DateFilter, CreateOrderModal, AssignWaiterModal } from '../../features/orders/components'
 import type { OrderDto, OrderDetailDto } from '../../types'
 import { OrderStatus } from '../../types'
 import toast from 'react-hot-toast'
@@ -41,11 +42,14 @@ const OrdersPage: FC = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false)
   const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false)
+  const [isAssignWaiterModalOpen, setIsAssignWaiterModalOpen] = useState(false)
+  const [orderToAssign, setOrderToAssign] = useState<OrderDto | null>(null)
   const [tables, setTables] = useState<TableDto[]>([])
   const [loadingTables, setLoadingTables] = useState(true)
 
   // Check if user is admin/staff (not a regular customer)
   const isStaff = user?.roles?.some(role => ['ADMIN', 'WAITER', 'BARTENDER', 'CHEF'].includes(role)) ?? false
+  const userIsAdmin = user?.roles?.includes('ADMIN') ?? false
   
   // Hook para filtrado de órdenes basado en rol y fecha
   const {
@@ -56,13 +60,29 @@ const OrdersPage: FC = () => {
     setFilterType,
     setSpecificDate,
     refresh: fetchOrders,
-    isAdmin,
     isWaiter,
   } = useOrdersFilter({
     userRole: user?.roles || [],
     autoFetch: true,
-    refreshInterval: 10000, // Auto-refresh cada 10 segundos
+    refreshInterval: 0, // Se maneja manualmente abajo
   })
+
+  // Estados activos que requieren monitoreo
+  const ACTIVE_STATUSES = ['CREATED', 'ASSIGNED', 'IN_PROGRESS', 'READY']
+  
+  // Auto-refresh solo cuando hay órdenes activas
+  useEffect(() => {
+    const hasActiveOrders = orders.some(order => 
+      ACTIVE_STATUSES.includes(order.status as string)
+    )
+    
+    if (hasActiveOrders) {
+      const interval = setInterval(() => {
+        fetchOrders()
+      }, 15000) // Refresh cada 15 segundos solo si hay órdenes activas
+      return () => clearInterval(interval)
+    }
+  }, [orders, fetchOrders])
 
   // Cargar mesas
   useEffect(() => {
@@ -79,9 +99,6 @@ const OrdersPage: FC = () => {
       }
     }
     loadTables()
-    // Auto-refresh cada 15 segundos
-    const interval = setInterval(loadTables, 15000)
-    return () => clearInterval(interval)
   }, [])
   
   // Get table number from user if they're a customer (would come from localStorage or context)
@@ -109,13 +126,21 @@ const OrdersPage: FC = () => {
   // Change order status
   const handleStatusChange = async (orderId: number, newStatus: OrderStatus) => {
     try {
+      console.log('Changing status:', orderId, 'to', newStatus)
       await orderService.changeStatus(orderId, newStatus)
       toast.success('Estado actualizado')
       fetchOrders()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating status:', err)
-      toast.error('Error al actualizar estado')
+      const errorMessage = err?.response?.data?.message || err?.message || 'Error al actualizar estado'
+      toast.error(errorMessage)
     }
+  }
+
+  // Open assign waiter modal (Admin only)
+  const handleOpenAssignModal = (order: OrderDto) => {
+    setOrderToAssign(order)
+    setIsAssignWaiterModalOpen(true)
   }
 
   // Open order details modal
@@ -205,19 +230,19 @@ const OrdersPage: FC = () => {
                   Panel de Pedidos
                 </h1>
                 {/* Badge de rol */}
-                {isAdmin && (
+                {userIsAdmin && (
                   <Badge variant="info" className="!bg-purple-500/20 !text-purple-400 !border-purple-500/30">
                     Administrador
                   </Badge>
                 )}
-                {isWaiter && !isAdmin && (
+                {isWaiter && !userIsAdmin && (
                   <Badge variant="info" className="!bg-cyan-500/20 !text-cyan-400 !border-cyan-500/30">
                     Mesero
                   </Badge>
                 )}
               </div>
               <p className="text-slate-400">
-                {isWaiter && !isAdmin 
+                {isWaiter && !userIsAdmin 
                   ? 'Tus órdenes del día' 
                   : 'Gestiona las órdenes y mesas del bar'
                 }
@@ -236,7 +261,7 @@ const OrdersPage: FC = () => {
                 dateFilter={dateFilter}
                 onFilterTypeChange={setFilterType}
                 onSpecificDateChange={setSpecificDate}
-                showWeekOption={isAdmin} // Solo admin puede ver opción de semana
+                showWeekOption={userIsAdmin} // Solo admin puede ver opción de semana
               />
               <Button
                 variant="secondary"
@@ -246,7 +271,7 @@ const OrdersPage: FC = () => {
               >
                 Actualizar
               </Button>
-              {(isAdmin || isWaiter) && (
+              {(userIsAdmin || isWaiter) && (
                 <Button
                   variant="primary"
                   leftIcon={<Plus className="w-4 h-4" />}
@@ -480,7 +505,18 @@ const OrdersPage: FC = () => {
                                 >
                                   Ver
                                 </Button>
-                                {order.status === OrderStatus.CREATED && (
+                                {(order.status === OrderStatus.CREATED || order.status === 'CREATED') && userIsAdmin && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    leftIcon={<UserPlus className="w-4 h-4" />}
+                                    onClick={() => handleOpenAssignModal(order)}
+                                    className="!border-amber-500 !text-amber-400 hover:!bg-amber-500/10"
+                                  >
+                                    Asignar
+                                  </Button>
+                                )}
+                                {(order.status === OrderStatus.ASSIGNED || order.status === 'ASSIGNED') && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -489,7 +525,7 @@ const OrdersPage: FC = () => {
                                     Preparar
                                   </Button>
                                 )}
-                                {order.status === OrderStatus.IN_PROGRESS && (
+                                {(order.status === OrderStatus.IN_PROGRESS || order.status === 'IN_PROGRESS') && (
                                   <Button
                                     size="sm"
                                     variant="primary"
@@ -498,7 +534,7 @@ const OrdersPage: FC = () => {
                                     Listo
                                   </Button>
                                 )}
-                                {order.status === OrderStatus.READY && (
+                                {(order.status === OrderStatus.READY || order.status === 'READY') && (
                                   <Button
                                     size="sm"
                                     variant="secondary"
@@ -861,6 +897,19 @@ const OrdersPage: FC = () => {
         isOpen={isCreateOrderModalOpen}
         onClose={() => setIsCreateOrderModalOpen(false)}
         onOrderCreated={() => {
+          fetchOrders()
+        }}
+      />
+
+      {/* Assign Waiter Modal */}
+      <AssignWaiterModal
+        isOpen={isAssignWaiterModalOpen}
+        onClose={() => {
+          setIsAssignWaiterModalOpen(false)
+          setOrderToAssign(null)
+        }}
+        order={orderToAssign}
+        onAssigned={() => {
           fetchOrders()
         }}
       />

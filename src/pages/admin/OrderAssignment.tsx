@@ -46,10 +46,15 @@ const OrderAssignment: FC = () => {
 
   useEffect(() => {
     fetchUnassignedOrders()
-    // Auto-refresh every 15 seconds
-    const interval = setInterval(fetchUnassignedOrders, 15000)
-    return () => clearInterval(interval)
   }, [])
+
+  // Auto-refresh solo cuando hay órdenes sin asignar
+  useEffect(() => {
+    if (unassignedOrders.length > 0) {
+      const interval = setInterval(fetchUnassignedOrders, 15000)
+      return () => clearInterval(interval)
+    }
+  }, [unassignedOrders.length])
 
   // Assign waiter to order
   const handleAssignWaiter = async (orderId: number) => {

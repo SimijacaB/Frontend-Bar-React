@@ -77,6 +77,11 @@ export const API_ENDPOINTS = {
     UPDATE_STATUS: (id: number) => `${API_BASE_URL}/api/order-table/${id}/status`,
     DELETE: (id: number) => `${API_BASE_URL}/api/order-table/${id}`,
   },
+
+  // Waiters (Meseros)
+  WAITERS: {
+    WITH_ORDERS: `${API_BASE_URL}/api/waiters/with-orders`,
+  },
 } as const
 
 export default API_BASE_URL

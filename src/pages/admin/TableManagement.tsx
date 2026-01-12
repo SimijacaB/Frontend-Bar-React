@@ -82,9 +82,6 @@ const TableManagement: FC = () => {
   useEffect(() => {
     if (isAdmin) {
       fetchTables()
-      // Auto-refresh every 30 seconds
-      const interval = setInterval(fetchTables, 30000)
-      return () => clearInterval(interval)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin])
