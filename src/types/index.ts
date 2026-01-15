@@ -10,6 +10,15 @@ export const Category = {
 
 export type Category = typeof Category[keyof typeof Category]
 
+export const UnitOfMeasure = {
+  ML: 'ML',
+  ONZ: 'ONZ',
+  GR: 'GR',
+  UN: 'UN',
+} as const
+
+export type UnitOfMeasure = typeof UnitOfMeasure[keyof typeof UnitOfMeasure]
+
 export const OrderStatus = {
   CREATED: 'CREATED',         // Pedido cliente QR - sin mesero
   ASSIGNED: 'ASSIGNED',       // Admin asignó mesero
@@ -69,6 +78,75 @@ export interface CreateProductDto {
   price: number
   isPrepared: boolean
   category: Category
+}
+
+// Ingredient Types
+export interface IngredientDto {
+  id: number
+  code: string
+  name: string
+  unitOfMeasure: UnitOfMeasure | string
+}
+
+export interface CreateIngredientDto {
+  code?: string
+  name: string
+  unitOfMeasure: UnitOfMeasure | string
+}
+
+export interface UpdateIngredientDto {
+  id: number
+  code?: string
+  name: string
+  unitOfMeasure: UnitOfMeasure | string
+}
+
+// Product Request/Response Types (matching backend DTOs)
+export interface ProductRequestDto {
+  name: string
+  code?: string
+  description: string
+  price: number
+  photoId?: number
+  isPrepared: boolean
+  category: Category | string
+  ingredients: ProductIngredientRequestDto[]
+}
+
+export interface ProductIngredientRequestDto {
+  ingredientId: number
+  amount: number
+}
+
+export interface ProductResponseDto {
+  id: number
+  name: string
+  code: string
+  description?: string
+  price: number
+  photoId?: number
+  isPrepared: boolean
+  category: string
+  ingredients: ProductIngredientResponseDto[]
+}
+
+export interface ProductIngredientResponseDto {
+  ingredient_id: number
+  ingredientName: string
+  amount: number
+  ingredientExtend: string
+}
+
+export interface UpdateProductDto {
+  id: number
+  name: string
+  code?: string
+  description: string
+  price: number
+  photoId?: number
+  isPrepared: boolean
+  category: string
+  ingredients: ProductIngredientRequestDto[]
 }
 
 // Order Types

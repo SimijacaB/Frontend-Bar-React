@@ -64,6 +64,11 @@ export const API_ENDPOINTS = {
   // Ingredients
   INGREDIENTS: {
     ALL: `${API_BASE_URL}/api/ingredient/all`,
+    BY_ID: (id: number) => `${API_BASE_URL}/api/ingredient/${id}`,
+    BY_CODE: (code: string) => `${API_BASE_URL}/api/ingredient/code/${code}`,
+    SAVE: `${API_BASE_URL}/api/ingredient/save`,
+    UPDATE: `${API_BASE_URL}/api/ingredient/update`,
+    DELETE: (code: string) => `${API_BASE_URL}/api/ingredient/delete/${code}`,
   },
 
   // Order Tables (Mesas)

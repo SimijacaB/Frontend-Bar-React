@@ -16,6 +16,7 @@ import OrdersPage from './pages/orders/Orders'
 import CartPage from './pages/cart/Cart'
 import { QRGenerator, TableManagement } from './pages/admin'
 import OrderAssignment from './pages/admin/OrderAssignment'
+import InventoryPanel from './pages/admin/InventoryPanel'
 
 // Pages - Auth
 import { LoginPage, ProtectedRoute } from './features/auth/components'
@@ -147,6 +148,16 @@ const App: FC = () => {
                 <ProtectedRoute>
                   <Layout showFooter={false}>
                     <TableManagement />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/inventario"
+              element={
+                <ProtectedRoute>
+                  <Layout showFooter={false}>
+                    <InventoryPanel />
                   </Layout>
                 </ProtectedRoute>
               }

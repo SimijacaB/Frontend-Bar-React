@@ -1,11 +1,26 @@
 import apiClient from '../../../lib/axios'
 import { API_ENDPOINTS } from '../../../config/api'
-import type { ProductDto, ProductDetailDto, CreateProductDto } from '../../../types'
+import type { 
+  ProductDto, 
+  ProductDetailDto, 
+  ProductResponseDto, 
+  ProductRequestDto, 
+  UpdateProductDto 
+} from '../../../types'
 import type { Category } from '../../../types'
+
+export interface ProductForListDto {
+  id: number
+  name: string
+  code: string
+  price: number
+  category: string
+  isPrepared: boolean
+}
 
 export const productService = {
   // Get all products
-  async getAll(): Promise<ProductDto[]> {
+  async getAll(): Promise<ProductForListDto[]> {
     const response = await apiClient.get(API_ENDPOINTS.PRODUCTS.ALL)
     return response.data
   },
@@ -16,14 +31,14 @@ export const productService = {
     return response.data
   },
 
-  // Get product by ID
-  async getById(id: number): Promise<ProductDetailDto> {
+  // Get product by ID (with full details including ingredients)
+  async getById(id: number): Promise<ProductResponseDto> {
     const response = await apiClient.get(API_ENDPOINTS.PRODUCTS.BY_ID(id))
     return response.data
   },
 
   // Get product by code
-  async getByCode(code: string): Promise<ProductDetailDto> {
+  async getByCode(code: string): Promise<ProductResponseDto> {
     const response = await apiClient.get(API_ENDPOINTS.PRODUCTS.BY_CODE(code))
     return response.data
   },
@@ -40,14 +55,35 @@ export const productService = {
     return response.data
   },
 
-  // Create new product
-  async create(product: CreateProductDto): Promise<ProductDetailDto> {
+  /**
+   * Create new product
+   * @param product - Product data including ingredients if isPrepared
+   * 
+   * Example product with ingredients:
+   * {
+   *   name: "Daiquiri",
+   *   code: "D01-ML-0008P",
+   *   description: "Coctel clasico de ron con limon y azucar",
+   *   price: 4.50,
+   *   photoId: 17,
+   *   isPrepared: true,
+   *   category: "COCKTAILS",
+   *   ingredients: [
+   *     { ingredientId: 7, amount: 50 },
+   *     { ingredientId: 6, amount: 20 },
+   *     { ingredientId: 39, amount: 10 }
+   *   ]
+   * }
+   * 
+   * Product without ingredients: ingredients: []
+   */
+  async create(product: ProductRequestDto): Promise<ProductResponseDto> {
     const response = await apiClient.post(API_ENDPOINTS.PRODUCTS.SAVE, product)
     return response.data
   },
 
   // Update product
-  async update(product: Partial<ProductDetailDto> & { id: number }): Promise<ProductDetailDto> {
+  async update(product: UpdateProductDto): Promise<ProductResponseDto> {
     const response = await apiClient.put(API_ENDPOINTS.PRODUCTS.UPDATE, product)
     return response.data
   },
