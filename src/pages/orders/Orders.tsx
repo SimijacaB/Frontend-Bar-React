@@ -24,6 +24,7 @@ import { OrderStatus } from '../../types'
 import toast from 'react-hot-toast'
 
 import { tableService, type TableDto } from '../../features/tables/api/tableService'
+import { billService } from '../../features/invoice/api/billService'
 
 const tableStatusConfig = {
   FREE: { label: 'Disponible', color: 'bg-emerald-500' },
@@ -84,20 +85,22 @@ const OrdersPage: FC = () => {
     }
   }, [orders, fetchOrders])
 
-  // Cargar mesas
-  useEffect(() => {
-    const loadTables = async () => {
-      try {
-        setLoadingTables(true)
-        const data = await tableService.getAll()
-        setTables(data)
-      } catch (err) {
-        console.error('Error loading tables:', err)
-        toast.error('Error al cargar mesas')
-      } finally {
-        setLoadingTables(false)
-      }
+  // Función para cargar mesas (reusable)
+  const loadTables = async () => {
+    try {
+      setLoadingTables(true)
+      const data = await tableService.getAll()
+      setTables(data)
+    } catch (err) {
+      console.error('Error loading tables:', err)
+      toast.error('Error al cargar mesas')
+    } finally {
+      setLoadingTables(false)
     }
+  }
+
+  // Cargar mesas al inicio
+  useEffect(() => {
     loadTables()
   }, [])
   
@@ -105,15 +108,19 @@ const OrdersPage: FC = () => {
   const customerTableNumber = !isStaff ? selectedTable : null
 
   // Filter orders - if customer, only show their table's orders
+  // Excluir órdenes facturadas (BILLED) del panel de órdenes activas
   const filteredOrders = orders.filter(order => {
+    // Excluir órdenes ya facturadas del panel principal de órdenes activas
+    const isNotBilled = order.status !== OrderStatus.BILLED && order.status !== 'BILLED'
+    
     // For customers: only show their table's orders
     if (!isStaff && customerTableNumber) {
-      return order.tableNumber === customerTableNumber
+      return order.tableNumber === customerTableNumber && isNotBilled
     }
     // For staff: apply table and status filters
     const matchesTable = !selectedTable || order.tableNumber === selectedTable
     const matchesStatus = !statusFilter || order.status === statusFilter
-    return matchesTable && matchesStatus
+    return matchesTable && matchesStatus && isNotBilled
   })
 
   // Get orders count by status
@@ -130,9 +137,50 @@ const OrdersPage: FC = () => {
       await orderService.changeStatus(orderId, newStatus)
       toast.success('Estado actualizado')
       fetchOrders()
+      // Si el nuevo estado es DELIVERED, refrescamos mesas por si cambió algo
+      if (newStatus === OrderStatus.DELIVERED) {
+        loadTables()
+      }
     } catch (err: any) {
       console.error('Error updating status:', err)
       const errorMessage = err?.response?.data?.message || err?.message || 'Error al actualizar estado'
+      toast.error(errorMessage)
+    }
+  }
+
+  // Generate bill for an order
+  const handleGenerateBill = async (order: OrderDto) => {
+    try {
+      const clientName = order.clientName || order.customerName || 'Cliente'
+      
+      // Usar facturación por selección de orden específica
+      await billService.generateBySelection([order.id])
+      
+      toast.success(`Factura generada para ${clientName}`)
+      
+      // Refrescar órdenes y mesas después de facturar
+      await fetchOrders()
+      await loadTables()
+    } catch (err: any) {
+      console.error('Error generating bill:', err)
+      const errorMessage = err?.response?.data?.message || err?.message || 'Error al generar factura'
+      toast.error(errorMessage)
+    }
+  }
+
+  // Generate bill for all orders of a table
+  const handleGenerateBillByTable = async (tableNumber: number, clientName: string) => {
+    try {
+      await billService.generateByTable(tableNumber, clientName)
+      
+      toast.success(`Factura de mesa ${tableNumber} generada`)
+      
+      // Refrescar órdenes y mesas después de facturar
+      await fetchOrders()
+      await loadTables()
+    } catch (err: any) {
+      console.error('Error generating bill by table:', err)
+      const errorMessage = err?.response?.data?.message || err?.message || 'Error al generar factura'
       toast.error(errorMessage)
     }
   }
@@ -376,7 +424,14 @@ const OrdersPage: FC = () => {
                       tables.map((table) => {
                         const statusConfig = tableStatusConfig[table.status] || tableStatusConfig.FREE
                         const isSelected = selectedTable === table.number
-                        const tableOrders = orders.filter(o => o.tableNumber === table.number)
+                        // Filtrar órdenes activas (excluyendo BILLED y CANCELLED)
+                        const tableOrders = orders.filter(o => 
+                          o.tableNumber === table.number && 
+                          o.status !== OrderStatus.BILLED && 
+                          o.status !== 'BILLED' &&
+                          o.status !== OrderStatus.CANCELLED &&
+                          o.status !== 'CANCELLED'
+                        )
 
                         return (
                           <button
@@ -583,7 +638,12 @@ const OrdersPage: FC = () => {
                             </div>
                             <div className="text-right">
                               <p className="text-xl font-bold text-amber-400">{formatPrice(order.valueToPay || 0)}</p>
-                              <Button size="sm" variant="primary" className="mt-2">
+                              <Button 
+                                size="sm" 
+                                variant="primary" 
+                                className="mt-2"
+                                onClick={() => handleGenerateBill(order)}
+                              >
                                 Generar Factura
                               </Button>
                             </div>
