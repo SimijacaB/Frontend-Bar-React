@@ -101,6 +101,18 @@ export interface UpdateIngredientDto {
   unitOfMeasure: UnitOfMeasure | string
 }
 
+// Inventory (Stock) Types
+export interface InventoryDto {
+  code: string
+  quantity: number
+}
+
+export interface InventoryResponseDto {
+  name: string
+  code: string
+  quantity: number
+}
+
 // Product Request/Response Types (matching backend DTOs)
 export interface ProductRequestDto {
   name: string

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { orderService } from '../../features/orders/api/orderService'
 import type { OrderDto } from '../../types'
 import { OrderStatus } from '../../types'
+import { formatPrice } from '../../lib/formatPrice'
 
 const OrderConfirmationPage: FC = () => {
   const { mesa } = useParams<{ mesa: string }>()
@@ -111,16 +112,6 @@ const OrderConfirmationPage: FC = () => {
       default:
         return { label: 'Recibido', color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30', Icon: Clock }
     }
-  }
-
-  const formatPrice = (price: number | undefined) => {
-    if (!price) return '$0'
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price)
   }
 
   const formatTime = (dateString: string | undefined) => {

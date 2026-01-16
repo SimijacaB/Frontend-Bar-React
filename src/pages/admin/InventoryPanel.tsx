@@ -9,13 +9,17 @@ import {
   X,
   Save,
   Beaker,
-  ChevronDown,
-  ChevronUp
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  Boxes
 } from 'lucide-react'
 import { Card, CardContent, Badge, LoadingState } from '../../components/ui'
 import Button from '../../components/ui/Button'
 import { ingredientService } from '../../features/ingredients/api/ingredientService'
 import { productService } from '../../features/products/api/productService'
+import { inventoryService } from '../../features/inventory/api/inventoryService'
+import { formatPrice } from '../../lib/formatPrice'
 import type { 
   IngredientDto, 
   CreateIngredientDto, 
@@ -23,7 +27,7 @@ import type {
   ProductResponseDto,
   ProductRequestDto,
   UpdateProductDto,
-  ProductIngredientRequestDto
+  InventoryResponseDto
 } from '../../types'
 import toast from 'react-hot-toast'
 
@@ -406,26 +410,40 @@ const ProductsTab: FC<ProductsTabProps> = ({
     await onDelete(code)
   }
 
-  const addIngredient = () => {
-    if (ingredients.length === 0) return
-    const firstIngredient = ingredients[0]
-    setFormData({
-      ...formData,
-      ingredients: [...formData.ingredients, { ingredientId: firstIngredient.id, amount: 1 }]
-    })
+  // Check if an ingredient is selected
+  const isIngredientSelected = (ingredientId: number) => {
+    return formData.ingredients.some(ing => ing.ingredientId === ingredientId)
   }
 
-  const removeIngredient = (index: number) => {
-    setFormData({
-      ...formData,
-      ingredients: formData.ingredients.filter((_, i) => i !== index)
-    })
+  // Get amount for a specific ingredient
+  const getIngredientAmount = (ingredientId: number) => {
+    const ing = formData.ingredients.find(i => i.ingredientId === ingredientId)
+    return ing?.amount || 0
   }
 
-  const updateIngredient = (index: number, field: keyof ProductIngredientRequestDto, value: number) => {
-    const updated = [...formData.ingredients]
-    updated[index] = { ...updated[index], [field]: value }
-    setFormData({ ...formData, ingredients: updated })
+  // Toggle ingredient selection
+  const toggleIngredient = (ingredientId: number) => {
+    if (isIngredientSelected(ingredientId)) {
+      setFormData({
+        ...formData,
+        ingredients: formData.ingredients.filter(ing => ing.ingredientId !== ingredientId)
+      })
+    } else {
+      setFormData({
+        ...formData,
+        ingredients: [...formData.ingredients, { ingredientId, amount: 1 }]
+      })
+    }
+  }
+
+  // Update ingredient amount
+  const updateIngredientAmount = (ingredientId: number, amount: number) => {
+    setFormData({
+      ...formData,
+      ingredients: formData.ingredients.map(ing => 
+        ing.ingredientId === ingredientId ? { ...ing, amount } : ing
+      )
+    })
   }
 
   if (isLoading) {
@@ -525,7 +543,7 @@ const ProductsTab: FC<ProductsTabProps> = ({
                         </span>
                       </td>
                       <td className="p-4 text-emerald-400 font-semibold">
-                        ${product.price.toFixed(2)}
+                        {formatPrice(product.price)}
                       </td>
                       <td className="p-4">
                         {product.isPrepared ? (
@@ -666,65 +684,74 @@ const ProductsTab: FC<ProductsTabProps> = ({
               {/* Ingredients Section */}
               {showIngredients && (
                 <div className="border border-slate-700 rounded-lg p-4">
-                  <div
-                    className="flex items-center justify-between cursor-pointer"
-                    onClick={() => setShowIngredients(!showIngredients)}
-                  >
-                    <h4 className="text-lg font-medium text-white flex items-center gap-2">
-                      <Beaker className="w-5 h-5 text-orange-400" />
-                      Ingredientes
-                    </h4>
-                    {showIngredients ? (
-                      <ChevronUp className="w-5 h-5 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-slate-400" />
-                    )}
-                  </div>
+                  <h4 className="text-lg font-medium text-white flex items-center gap-2 mb-4">
+                    <Beaker className="w-5 h-5 text-orange-400" />
+                    Seleccionar Ingredientes
+                    <span className="ml-2 text-sm text-slate-400">
+                      ({formData.ingredients.length} seleccionados)
+                    </span>
+                  </h4>
 
-                  <div className="mt-4 space-y-3">
-                    {formData.ingredients.map((ing, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <select
-                          value={ing.ingredientId}
-                          onChange={(e) => updateIngredient(index, 'ingredientId', parseInt(e.target.value))}
-                          className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
-                        >
-                          {ingredients.map(ingredient => (
-                            <option key={ingredient.id} value={ingredient.id}>
-                              {ingredient.name} ({unitOfMeasureLabels[ingredient.unitOfMeasure]})
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={ing.amount}
-                          onChange={(e) => updateIngredient(index, 'amount', parseFloat(e.target.value) || 0)}
-                          className="w-24 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
-                          placeholder="Cantidad"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeIngredient(index)}
-                          className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-
-                    {ingredients.length > 0 ? (
-                      <Button type="button" variant="outline" size="sm" onClick={addIngredient}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Agregar Ingrediente
-                      </Button>
-                    ) : (
-                      <p className="text-sm text-amber-400">
-                        No hay ingredientes disponibles. Crea ingredientes primero en la pestaña "Ingredientes".
-                      </p>
-                    )}
-                  </div>
+                  {ingredients.length > 0 ? (
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                      {ingredients.map(ingredient => {
+                        const isSelected = isIngredientSelected(ingredient.id)
+                        const amount = getIngredientAmount(ingredient.id)
+                        
+                        return (
+                          <div 
+                            key={ingredient.id} 
+                            className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                              isSelected 
+                                ? 'bg-emerald-500/10 border border-emerald-500/30' 
+                                : 'bg-slate-800/50 border border-slate-700 hover:border-slate-600'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              id={`ingredient-${ingredient.id}`}
+                              checked={isSelected}
+                              onChange={() => toggleIngredient(ingredient.id)}
+                              className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <label 
+                              htmlFor={`ingredient-${ingredient.id}`}
+                              className="flex-1 cursor-pointer"
+                            >
+                              <span className="text-white font-medium">{ingredient.name}</span>
+                              <span className="ml-2 text-slate-400 text-sm">
+                                ({unitOfMeasureLabels[ingredient.unitOfMeasure]})
+                              </span>
+                              {ingredient.code && (
+                                <code className="ml-2 text-xs text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                  {ingredient.code}
+                                </code>
+                              )}
+                            </label>
+                            
+                            {isSelected && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400 text-sm">Cantidad:</span>
+                                <input
+                                  type="number"
+                                  min="0.1"
+                                  step="0.1"
+                                  value={amount}
+                                  onChange={(e) => updateIngredientAmount(ingredient.id, parseFloat(e.target.value) || 0)}
+                                  className="w-20 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-emerald-500 text-center"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-amber-400 p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                      No hay ingredientes disponibles. Crea ingredientes primero en la pestaña "Ingredientes".
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -746,14 +773,351 @@ const ProductsTab: FC<ProductsTabProps> = ({
 }
 
 // ========================
+// STOCK TAB
+// ========================
+interface StockTabProps {
+  stock: InventoryResponseDto[]
+  ingredients: IngredientDto[]
+  isLoading: boolean
+  onRefresh: () => void
+  onAddStock: (quantity: number, code: string) => Promise<void>
+  onDeductStock: (quantity: number, code: string) => Promise<void>
+  onCreateStock: (code: string, quantity: number) => Promise<void>
+}
+
+const StockTab: FC<StockTabProps> = ({
+  stock,
+  ingredients,
+  isLoading,
+  onRefresh,
+  onAddStock,
+  onDeductStock,
+  onCreateStock,
+}) => {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<'add' | 'deduct' | 'create'>('add')
+  const [selectedItem, setSelectedItem] = useState<InventoryResponseDto | null>(null)
+  const [quantity, setQuantity] = useState(0)
+  const [selectedIngredientCode, setSelectedIngredientCode] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  const filteredStock = (stock || []).filter(item =>
+    item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.code?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Get ingredients that don't have stock yet
+  const ingredientsWithoutStock = (ingredients || []).filter(
+    ing => ing.code && !(stock || []).some(s => s.code === ing.code)
+  )
+
+  const handleOpenModal = (mode: 'add' | 'deduct' | 'create', item?: InventoryResponseDto) => {
+    setModalMode(mode)
+    setSelectedItem(item || null)
+    setQuantity(0)
+    if (mode === 'create' && ingredientsWithoutStock.length > 0) {
+      setSelectedIngredientCode(ingredientsWithoutStock[0].code)
+    }
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedItem(null)
+    setQuantity(0)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (quantity <= 0) {
+      toast.error('La cantidad debe ser mayor a 0')
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      if (modalMode === 'create') {
+        await onCreateStock(selectedIngredientCode, quantity)
+      } else if (modalMode === 'add' && selectedItem) {
+        await onAddStock(quantity, selectedItem.code)
+      } else if (modalMode === 'deduct' && selectedItem) {
+        await onDeductStock(quantity, selectedItem.code)
+      }
+      handleCloseModal()
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Stats
+  const totalItems = stock.length
+  const lowStockItems = stock.filter(s => s.quantity < 10).length
+  const outOfStockItems = stock.filter(s => s.quantity === 0).length
+
+  if (isLoading) {
+    return <LoadingState message="Cargando stock..." />
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <Boxes className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-white">{totalItems}</div>
+                <div className="text-sm text-slate-400">Total Items</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-amber-400">{lowStockItems}</div>
+                <div className="text-sm text-slate-400">Stock Bajo (&lt;10)</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                <TrendingDown className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-red-400">{outOfStockItems}</div>
+                <div className="text-sm text-slate-400">Sin Stock</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                <Beaker className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-white">{ingredientsWithoutStock.length}</div>
+                <div className="text-sm text-slate-400">Sin Inventario</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre o código..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onRefresh}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Actualizar
+          </Button>
+          {ingredientsWithoutStock.length > 0 && (
+            <Button variant="primary" size="sm" onClick={() => handleOpenModal('create')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Inventario
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <Card className="bg-slate-900/50 border-slate-800">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-800">
+                  <th className="text-left p-4 text-slate-400 font-medium">Código</th>
+                  <th className="text-left p-4 text-slate-400 font-medium">Ingrediente</th>
+                  <th className="text-left p-4 text-slate-400 font-medium">Cantidad</th>
+                  <th className="text-left p-4 text-slate-400 font-medium">Estado</th>
+                  <th className="text-right p-4 text-slate-400 font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStock.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center p-8 text-slate-400">
+                      No se encontraron items en el inventario
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStock.map((item) => (
+                    <tr key={item.code} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                      <td className="p-4">
+                        <code className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded text-sm">
+                          {item.code}
+                        </code>
+                      </td>
+                      <td className="p-4 text-white font-medium">{item.name}</td>
+                      <td className="p-4">
+                        <span className={`text-lg font-bold ${
+                          item.quantity === 0 ? 'text-red-400' :
+                          item.quantity < 10 ? 'text-amber-400' : 'text-emerald-400'
+                        }`}>
+                          {item.quantity}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        {item.quantity === 0 ? (
+                          <Badge variant="danger">Sin Stock</Badge>
+                        ) : item.quantity < 10 ? (
+                          <Badge variant="warning">Bajo</Badge>
+                        ) : (
+                          <Badge variant="success">Disponible</Badge>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenModal('add', item)}
+                            className="p-2 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                            title="Agregar stock"
+                          >
+                            <TrendingUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenModal('deduct', item)}
+                            className="p-2 text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
+                            title="Descontar stock"
+                            disabled={item.quantity === 0}
+                          >
+                            <TrendingDown className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white">
+                {modalMode === 'create' ? 'Crear Inventario' :
+                 modalMode === 'add' ? 'Agregar Stock' : 'Descontar Stock'}
+              </h3>
+              <button onClick={handleCloseModal} className="text-slate-400 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {modalMode === 'create' ? (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Seleccionar Ingrediente
+                  </label>
+                  <select
+                    value={selectedIngredientCode}
+                    onChange={(e) => setSelectedIngredientCode(e.target.value)}
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    {ingredientsWithoutStock.map(ing => (
+                      <option key={ing.code} value={ing.code}>
+                        {ing.name} ({ing.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-800/50 rounded-lg">
+                  <p className="text-slate-400 text-sm">Ingrediente:</p>
+                  <p className="text-white font-medium">{selectedItem?.name}</p>
+                  <p className="text-slate-400 text-sm mt-2">Stock actual:</p>
+                  <p className="text-2xl font-bold text-emerald-400">{selectedItem?.quantity}</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  {modalMode === 'create' ? 'Cantidad Inicial' :
+                   modalMode === 'add' ? 'Cantidad a Agregar' : 'Cantidad a Descontar'}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={modalMode === 'deduct' ? selectedItem?.quantity : undefined}
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                  placeholder="Ingresa la cantidad"
+                  required
+                />
+                {modalMode === 'deduct' && selectedItem && (
+                  <p className="text-sm text-slate-400 mt-1">
+                    Máximo: {selectedItem.quantity}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="outline" className="flex-1" onClick={handleCloseModal}>
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  variant={modalMode === 'deduct' ? 'outline' : 'primary'} 
+                  className={`flex-1 ${modalMode === 'deduct' ? 'border-amber-500 text-amber-400 hover:bg-amber-500/10' : ''}`}
+                  disabled={isSaving}
+                >
+                  {modalMode === 'add' && <TrendingUp className="w-4 h-4 mr-2" />}
+                  {modalMode === 'deduct' && <TrendingDown className="w-4 h-4 mr-2" />}
+                  {modalMode === 'create' && <Plus className="w-4 h-4 mr-2" />}
+                  {isSaving ? 'Guardando...' : 
+                   modalMode === 'create' ? 'Crear' :
+                   modalMode === 'add' ? 'Agregar' : 'Descontar'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ========================
 // MAIN COMPONENT
 // ========================
 const InventoryPanel: FC = () => {
-  const [activeTab, setActiveTab] = useState<'ingredients' | 'products'>('ingredients')
+  const [activeTab, setActiveTab] = useState<'ingredients' | 'products' | 'stock'>('ingredients')
   const [ingredients, setIngredients] = useState<IngredientDto[]>([])
   const [products, setProducts] = useState<ProductResponseDto[]>([])
+  const [stock, setStock] = useState<InventoryResponseDto[]>([])
   const [isLoadingIngredients, setIsLoadingIngredients] = useState(true)
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
+  const [isLoadingStock, setIsLoadingStock] = useState(true)
 
   const fetchIngredients = async () => {
     setIsLoadingIngredients(true)
@@ -781,9 +1145,24 @@ const InventoryPanel: FC = () => {
     }
   }
 
+  const fetchStock = async () => {
+    setIsLoadingStock(true)
+    try {
+      const data = await inventoryService.getAll()
+      setStock(data || [])
+    } catch (error) {
+      console.error('Error fetching stock:', error)
+      toast.error('Error al cargar stock')
+      setStock([])
+    } finally {
+      setIsLoadingStock(false)
+    }
+  }
+
   useEffect(() => {
     fetchIngredients()
     fetchProducts()
+    fetchStock()
   }, [])
 
   // Ingredient handlers
@@ -855,6 +1234,43 @@ const InventoryPanel: FC = () => {
     }
   }
 
+  // Stock handlers
+  const handleAddStock = async (quantity: number, code: string) => {
+    try {
+      await inventoryService.addStock(quantity, code)
+      toast.success(`Se agregaron ${quantity} unidades`)
+      fetchStock()
+    } catch (error) {
+      console.error('Error adding stock:', error)
+      toast.error('Error al agregar stock')
+      throw error
+    }
+  }
+
+  const handleDeductStock = async (quantity: number, code: string) => {
+    try {
+      await inventoryService.deductStock(quantity, code)
+      toast.success(`Se descontaron ${quantity} unidades`)
+      fetchStock()
+    } catch (error) {
+      console.error('Error deducting stock:', error)
+      toast.error('Error al descontar stock')
+      throw error
+    }
+  }
+
+  const handleCreateStock = async (code: string, quantity: number) => {
+    try {
+      await inventoryService.create({ code, quantity })
+      toast.success('Inventario creado')
+      fetchStock()
+    } catch (error) {
+      console.error('Error creating stock:', error)
+      toast.error('Error al crear inventario')
+      throw error
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-950">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -862,11 +1278,11 @@ const InventoryPanel: FC = () => {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">Gestión de Inventario</h1>
-            <p className="text-slate-400">Administra ingredientes y productos del bar</p>
+            <p className="text-slate-400">Administra ingredientes, productos y stock del bar</p>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6 border-b border-slate-800 pb-4">
+          <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-800 pb-4">
             <button
               onClick={() => setActiveTab('ingredients')}
               className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
@@ -899,10 +1315,26 @@ const InventoryPanel: FC = () => {
                 {products.length}
               </span>
             </button>
+            <button
+              onClick={() => setActiveTab('stock')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'stock'
+                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+              }`}
+            >
+              <Boxes className="w-5 h-5" />
+              Stock
+              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                activeTab === 'stock' ? 'bg-white/20' : 'bg-slate-700'
+              }`}>
+                {stock.length}
+              </span>
+            </button>
           </div>
 
           {/* Tab Content */}
-          {activeTab === 'ingredients' ? (
+          {activeTab === 'ingredients' && (
             <IngredientsTab
               ingredients={ingredients}
               isLoading={isLoadingIngredients}
@@ -910,7 +1342,8 @@ const InventoryPanel: FC = () => {
               onSave={handleSaveIngredient}
               onDelete={handleDeleteIngredient}
             />
-          ) : (
+          )}
+          {activeTab === 'products' && (
             <ProductsTab
               products={products}
               ingredients={ingredients}
@@ -918,6 +1351,17 @@ const InventoryPanel: FC = () => {
               onRefresh={fetchProducts}
               onSave={handleSaveProduct}
               onDelete={handleDeleteProduct}
+            />
+          )}
+          {activeTab === 'stock' && (
+            <StockTab
+              stock={stock}
+              ingredients={ingredients}
+              isLoading={isLoadingStock}
+              onRefresh={fetchStock}
+              onAddStock={handleAddStock}
+              onDeductStock={handleDeductStock}
+              onCreateStock={handleCreateStock}
             />
           )}
         </div>

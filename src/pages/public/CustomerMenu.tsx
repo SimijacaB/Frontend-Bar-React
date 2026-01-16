@@ -25,6 +25,7 @@ import { productService } from '../../features/products/api/productService'
 import { orderService } from '../../features/orders/api/orderService'
 import type { ProductDto, OrderDto } from '../../types'
 import { OrderStatus } from '../../types'
+import { formatPrice } from '../../lib/formatPrice'
 
 // Category icons
 const categoryIcons: Record<string, typeof Wine> = {
@@ -204,16 +205,6 @@ const CustomerMenu: FC = () => {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const formatPrice = (price: number | undefined) => {
-    if (!price) return '$0'
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price)
   }
 
   if (loading) {

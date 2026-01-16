@@ -10,6 +10,7 @@ import { productService } from '../../features/products/api/productService'
 import { orderService } from '../../features/orders/api/orderService'
 import type { ProductDto } from '../../types'
 import { Category } from '../../types'
+import { formatPrice } from '../../lib/formatPrice'
 
 // Iconos por categoría
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -36,16 +37,6 @@ const categoryColors: Record<string, string> = {
 interface CartItem {
   product: ProductDto
   quantity: number
-}
-
-// Formatear precio en pesos colombianos
-const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(price)
 }
 
 const PublicMenuPage: FC = () => {

@@ -5,17 +5,7 @@ import { useCart } from '../../features/products/context/CartContext'
 import { Card, CardContent, CardHeader, CardTitle, Input } from '../../components/ui'
 import Button from '../../components/ui/Button'
 import toast from 'react-hot-toast'
-
-// Format price in Colombian Pesos
-const formatPrice = (price: number | undefined) => {
-  if (!price) return '$0'
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(price)
-}
+import { formatPrice } from '../../lib/formatPrice'
 
 const CartPage: FC = () => {
   const navigate = useNavigate()

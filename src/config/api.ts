@@ -56,9 +56,14 @@ export const API_ENDPOINTS = {
     DOWNLOAD_PDF: (billId: number) => `${API_BASE_URL}/api/bill/download-pdf/${billId}`,
   },
 
-  // Inventory
+  // Inventory (Stock)
   INVENTORY: {
     ALL: `${API_BASE_URL}/api/inventory/all`,
+    BY_CODE: (code: string) => `${API_BASE_URL}/api/inventory/find-by-code/${code}`,
+    SAVE: `${API_BASE_URL}/api/inventory/save`,
+    ADD_STOCK: (quantity: number, code: string) => `${API_BASE_URL}/api/inventory/add-stock/${quantity}/${code}`,
+    DEDUCT_STOCK: (quantity: number, code: string) => `${API_BASE_URL}/api/inventory/deduct-stock/${quantity}/${code}`,
+    DELETE: (code: string) => `${API_BASE_URL}/api/inventory/delete/${code}`,
   },
 
   // Ingredients

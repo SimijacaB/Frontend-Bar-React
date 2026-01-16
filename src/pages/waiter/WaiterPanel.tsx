@@ -13,6 +13,7 @@ import {
   VolumeX
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { formatPrice } from '../../lib/formatPrice'
 import { orderService } from '../../features/orders/api/orderService'
 import type { OrderDto } from '../../types'
 
@@ -171,16 +172,6 @@ const WaiterPanel: FC = () => {
       hour: '2-digit', 
       minute: '2-digit' 
     })
-  }
-
-  const formatPrice = (price: number | undefined) => {
-    if (!price) return '$0'
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(price)
   }
 
   if (loading) {
