@@ -225,7 +225,7 @@ const OrdersPage: FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      {/* Admin Navigation Tabs */}
+      {/* Admin Navigation Tabs - Only show billing/reports for admin */}
       {isStaff && (
         <section className="bg-slate-900 border-b border-slate-700">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -241,28 +241,32 @@ const OrdersPage: FC = () => {
                 <Clock className="w-5 h-5" />
                 Órdenes
               </button>
-              <button
-                onClick={() => setActiveTab('billing')}
-                className={`flex items-center gap-2 px-6 py-4 font-medium transition-all border-b-2 ${
-                  activeTab === 'billing'
-                    ? 'text-emerald-400 border-emerald-400'
-                    : 'text-slate-400 border-transparent hover:text-slate-300'
-                }`}
-              >
-                <Receipt className="w-5 h-5" />
-                Facturación
-              </button>
-              <button
-                onClick={() => setActiveTab('reports')}
-                className={`flex items-center gap-2 px-6 py-4 font-medium transition-all border-b-2 ${
-                  activeTab === 'reports'
-                    ? 'text-emerald-400 border-emerald-400'
-                    : 'text-slate-400 border-transparent hover:text-slate-300'
-                }`}
-              >
-                <TrendingUp className="w-5 h-5" />
-                Reportes
-              </button>
+              {userIsAdmin && (
+                <>
+                  <button
+                    onClick={() => setActiveTab('billing')}
+                    className={`flex items-center gap-2 px-6 py-4 font-medium transition-all border-b-2 ${
+                      activeTab === 'billing'
+                        ? 'text-emerald-400 border-emerald-400'
+                        : 'text-slate-400 border-transparent hover:text-slate-300'
+                    }`}
+                  >
+                    <Receipt className="w-5 h-5" />
+                    Facturación
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('reports')}
+                    className={`flex items-center gap-2 px-6 py-4 font-medium transition-all border-b-2 ${
+                      activeTab === 'reports'
+                        ? 'text-emerald-400 border-emerald-400'
+                        : 'text-slate-400 border-transparent hover:text-slate-300'
+                    }`}
+                  >
+                    <TrendingUp className="w-5 h-5" />
+                    Reportes
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </section>

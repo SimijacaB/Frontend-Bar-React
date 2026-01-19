@@ -1,5 +1,5 @@
 import type { FC } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 
 // Layout
@@ -7,7 +7,7 @@ import { Layout } from './components/layout'
 
 // Contexts
 import { CartProvider } from './features/products/context/CartContext'
-import { AuthProvider } from './features/auth/context/AuthContext'
+import { AuthProvider, useAuth } from './features/auth/context/AuthContext'
 
 // Pages - Admin/Internal
 import Landing from './pages/landing/Landing'
@@ -26,11 +26,35 @@ import { PublicMenu, PublicLanding } from './pages/public'
 import CustomerMenu from './pages/public/CustomerMenu'
 import OrderConfirmationPage from './pages/public/OrderConfirmation'
 
-// Pages - Waiter Panel
-import WaiterPanel from './pages/waiter/WaiterPanel'
-
 // Styles
 import './index.css'
+
+// Home route handler - redirects authenticated users to their appropriate dashboard
+const HomeRoute: FC = () => {
+  const { isAuthenticated, user, isLoading } = useAuth()
+  
+  // Show nothing while loading auth state
+  if (isLoading) {
+    return null
+  }
+  
+  // If authenticated, redirect to appropriate dashboard
+  if (isAuthenticated) {
+    const isAdmin = user?.roles?.includes('ADMIN')
+    const isWaiter = user?.roles?.includes('WAITER')
+    
+    if (isAdmin) {
+      return <Navigate to="/dashboard" replace />
+    } else if (isWaiter) {
+      return <Navigate to="/meseros" replace />
+    }
+    // Default to dashboard for other roles
+    return <Navigate to="/dashboard" replace />
+  }
+  
+  // Not authenticated - show public landing
+  return <PublicLanding />
+}
 
 const App: FC = () => {
   return (
@@ -68,7 +92,7 @@ const App: FC = () => {
             {/* ============================================ */}
             {/* PUBLIC ROUTES - For customers via QR        */}
             {/* ============================================ */}
-            <Route path="/" element={<PublicLanding />} />
+            <Route path="/" element={<HomeRoute />} />
             <Route path="/carta" element={<PublicMenu />} />
             <Route path="/mesa/:mesa" element={<PublicMenu />} />
             <Route path="/pedido-confirmado/:mesa" element={<OrderConfirmationPage />} />
@@ -76,8 +100,26 @@ const App: FC = () => {
             {/* ============================================ */}
             {/* WAITER/STAFF ROUTES                         */}
             {/* ============================================ */}
-            <Route path="/meseros" element={<WaiterPanel />} />
-            <Route path="/tomar-pedido" element={<CustomerMenu />} />
+            <Route
+              path="/meseros"
+              element={
+                <ProtectedRoute>
+                  <Layout showFooter={false}>
+                    <OrdersPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tomar-pedido"
+              element={
+                <ProtectedRoute>
+                  <Layout showFooter={false}>
+                    <CustomerMenu />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
             
             {/* ============================================ */}
             {/* INTERNAL/ADMIN ROUTES                       */}

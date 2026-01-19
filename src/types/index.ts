@@ -111,6 +111,8 @@ export interface InventoryResponseDto {
   name: string
   code: string
   quantity: number
+  ingredientName?: string
+  ingredientCode?: string
 }
 
 // Product Request/Response Types (matching backend DTOs)

@@ -18,14 +18,17 @@ import {
   ChefHat,
   Package,
   QrCode,
-  ArrowLeft
+  ArrowLeft,
+  AlertTriangle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { productService } from '../../features/products/api/productService'
 import { orderService } from '../../features/orders/api/orderService'
-import type { ProductDto, OrderDto } from '../../types'
+import { inventoryService } from '../../features/inventory/api/inventoryService'
+import type { ProductDto, OrderDto, InventoryResponseDto, ProductResponseDto } from '../../types'
 import { OrderStatus } from '../../types'
 import { formatPrice } from '../../lib/formatPrice'
+import { useAuth } from '../../features/auth/context/AuthContext'
 
 // Category icons
 const categoryIcons: Record<string, typeof Wine> = {
@@ -48,16 +51,26 @@ interface CartItem {
   quantity: number
 }
 
+// Product with stock info
+interface ProductWithStock extends ProductDto {
+  hasStock: boolean
+  stockWarning?: string
+}
+
 const CustomerMenu: FC = () => {
   const { mesa } = useParams<{ mesa: string }>()
   const navigate = useNavigate()
+  const { isAuthenticated, user } = useAuth()
+  
+  // Check if user is staff (waiter/admin) - they can see stock info
+  const isStaff = isAuthenticated && (user?.roles?.includes('WAITER') || user?.roles?.includes('ADMIN'))
   
   // Only works if coming from QR (mesa param exists)
   const hasTableFromQR = !!mesa
   const tableNumber = mesa ? parseInt(mesa, 10) : 0
 
   // State
-  const [products, setProducts] = useState<ProductDto[]>([])
+  const [products, setProducts] = useState<ProductWithStock[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
@@ -69,13 +82,79 @@ const CustomerMenu: FC = () => {
   const [myOrders, setMyOrders] = useState<OrderDto[]>([])
   const [isOrdersOpen, setIsOrdersOpen] = useState(false)
   const [loadingOrders, setLoadingOrders] = useState(false)
+  const [inventory, setInventory] = useState<InventoryResponseDto[]>([])
 
-  // Load products
+  // Load products and inventory
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const data = await productService.getAllProducts()
-        setProducts(data.filter(p => p.available !== false))
+        // Fetch products
+        const productsData = await productService.getAllProducts()
+        
+        // If staff, also fetch inventory to check stock
+        let inventoryData: InventoryResponseDto[] = []
+        let productDetails: ProductResponseDto[] = []
+        
+        if (isStaff) {
+          try {
+            inventoryData = await inventoryService.getAll()
+            setInventory(inventoryData)
+            
+            // Fetch details for prepared products to get ingredients
+            const detailsPromises = productsData.map(p => 
+              productService.getById(p.id).catch(() => null)
+            )
+            productDetails = (await Promise.all(detailsPromises)).filter(Boolean) as ProductResponseDto[]
+          } catch (err) {
+            console.error('Error loading inventory:', err)
+          }
+        }
+        
+        // Map products with stock info
+        const productsWithStock: ProductWithStock[] = productsData
+          .filter(p => p.available !== false)
+          .map(product => {
+            // Default: has stock
+            let hasStock = true
+            let stockWarning: string | undefined
+            
+            if (isStaff && inventoryData.length > 0) {
+              // Find product details (if prepared)
+              const detail = productDetails.find(d => d?.id === product.id)
+              
+              if (detail?.isPrepared && detail.ingredients?.length > 0) {
+                // Check if all ingredients have stock
+                const missingIngredients: string[] = []
+                
+                for (const ing of detail.ingredients) {
+                  const invItem = inventoryData.find(inv => 
+                    inv.ingredientName?.toLowerCase() === ing.ingredientName?.toLowerCase() ||
+                    inv.ingredientCode === product.code
+                  )
+                  
+                  if (!invItem || invItem.quantity < ing.quantity) {
+                    missingIngredients.push(ing.ingredientName)
+                    hasStock = false
+                  }
+                }
+                
+                if (missingIngredients.length > 0) {
+                  stockWarning = `Sin stock: ${missingIngredients.join(', ')}`
+                }
+              } else {
+                // Non-prepared product - check direct inventory by product code
+                const invItem = inventoryData.find(inv => inv.ingredientCode === product.code)
+                if (invItem && invItem.quantity <= 0) {
+                  hasStock = false
+                  stockWarning = 'Sin stock disponible'
+                }
+              }
+            }
+            
+            return { ...product, hasStock, stockWarning }
+          })
+        
+        setProducts(productsWithStock)
       } catch (err) {
         console.error('Error loading products:', err)
         toast.error('Error al cargar el menú')
@@ -83,8 +162,8 @@ const CustomerMenu: FC = () => {
         setLoading(false)
       }
     }
-    fetchProducts()
-  }, [])
+    fetchData()
+  }, [isStaff])
 
   // Load orders for this table - only if coming from QR
   const fetchMyOrders = async () => {
@@ -365,13 +444,30 @@ const CustomerMenu: FC = () => {
           <div className="grid grid-cols-2 gap-3">
             {filteredProducts.map((product) => {
               const cartItem = cart.find(item => item.product.id === product.id)
+              const productWithStock = product as ProductWithStock
+              const hasStock = productWithStock.hasStock !== false
+              
               return (
                 <div
                   key={product.id}
-                  className="bg-slate-800/50 rounded-2xl p-3 border border-slate-700/50"
+                  className={`bg-slate-800/50 rounded-2xl p-3 border border-slate-700/50 relative ${
+                    !hasStock && isStaff ? 'opacity-60' : ''
+                  }`}
                 >
+                  {/* Out of Stock Badge - Only for staff */}
+                  {!hasStock && isStaff && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <div className="bg-red-500/90 text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Sin Stock
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Product Image Placeholder */}
-                  <div className="aspect-square bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl mb-3 flex items-center justify-center">
+                  <div className={`aspect-square bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl mb-3 flex items-center justify-center ${
+                    !hasStock && isStaff ? 'grayscale' : ''
+                  }`}>
                     {(() => {
                       const Icon = categoryIcons[product.category] || Wine
                       return <Icon className="w-12 h-12 text-slate-500" />
@@ -381,9 +477,16 @@ const CustomerMenu: FC = () => {
                   <h3 className="font-medium text-white text-sm mb-1 truncate">
                     {product.name}
                   </h3>
-                  <p className="text-emerald-400 font-bold mb-3">
+                  <p className="text-emerald-400 font-bold mb-2">
                     {formatPrice(product.price)}
                   </p>
+                  
+                  {/* Stock Warning - Only for staff */}
+                  {!hasStock && isStaff && productWithStock.stockWarning && (
+                    <p className="text-red-400 text-xs mb-2 line-clamp-2">
+                      {productWithStock.stockWarning}
+                    </p>
+                  )}
 
                   {cartItem ? (
                     <div className="flex items-center justify-between bg-slate-700/50 rounded-lg p-1">
@@ -397,10 +500,19 @@ const CustomerMenu: FC = () => {
                       <button
                         onClick={() => updateQuantity(product.id, 1)}
                         className="p-2 text-white hover:bg-slate-600 rounded-lg"
+                        disabled={!hasStock && isStaff}
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
+                  ) : !hasStock && isStaff ? (
+                    <button
+                      disabled
+                      className="w-full py-2 bg-slate-600 text-slate-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-not-allowed"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      No Disponible
+                    </button>
                   ) : (
                     <button
                       onClick={() => addToCart(product)}
