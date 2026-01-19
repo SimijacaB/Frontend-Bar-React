@@ -11,18 +11,14 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { orderService } from '../../features/orders/api/orderService'
+import { waiterService, type WaiterWithOrdersDto } from '../../features/orders/api/waiterService'
 import type { OrderDto } from '../../types'
-
-// Mock waiters - En producción vendría del backend
-const mockWaiters = [
-  { username: 'waiter1', name: 'Carlos Mesero' },
-  { username: 'waiter2', name: 'Ana García' },
-  { username: 'waiter3', name: 'Luis Rodríguez' },
-]
 
 const OrderAssignment: FC = () => {
   const [unassignedOrders, setUnassignedOrders] = useState<OrderDto[]>([])
+  const [waiters, setWaiters] = useState<WaiterWithOrdersDto[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingWaiters, setLoadingWaiters] = useState(true)
   const [assigning, setAssigning] = useState<number | null>(null)
   const [selectedWaiter, setSelectedWaiter] = useState<Record<number, string>>({})
 
@@ -44,8 +40,23 @@ const OrderAssignment: FC = () => {
     }
   }
 
+  // Fetch waiters from backend
+  const fetchWaiters = async () => {
+    setLoadingWaiters(true)
+    try {
+      const data = await waiterService.getWaitersWithOrders()
+      setWaiters(data)
+    } catch (err) {
+      console.error('Error fetching waiters:', err)
+      toast.error('Error al cargar meseros')
+    } finally {
+      setLoadingWaiters(false)
+    }
+  }
+
   useEffect(() => {
     fetchUnassignedOrders()
+    fetchWaiters()
   }, [])
 
   // Auto-refresh solo cuando hay órdenes sin asignar
@@ -245,13 +256,18 @@ const OrderAssignment: FC = () => {
                         [order.id]: e.target.value
                       }))}
                       className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      disabled={loadingWaiters}
                     >
-                      <option value="">Seleccionar mesero...</option>
-                      {mockWaiters.map(waiter => (
-                        <option key={waiter.username} value={waiter.username}>
-                          {waiter.name}
-                        </option>
-                      ))}
+                      <option value="">
+                        {loadingWaiters ? 'Cargando meseros...' : 'Seleccionar mesero...'}
+                      </option>
+                      {waiters
+                        .filter(waiter => waiter.active) // Solo mostrar meseros activos
+                        .map(waiter => (
+                          <option key={waiter.username} value={waiter.username}>
+                            {waiter.username} ({waiter.activeOrdersCount} órdenes activas)
+                          </option>
+                        ))}
                     </select>
                     <button
                       onClick={() => handleAssignWaiter(order.id)}
@@ -266,6 +282,11 @@ const OrderAssignment: FC = () => {
                       Asignar
                     </button>
                   </div>
+                  {waiters.filter(w => w.active).length === 0 && !loadingWaiters && (
+                    <p className="text-amber-400 text-xs mt-2">
+                      ⚠️ No hay meseros activos registrados
+                    </p>
+                  )}
                 </div>
               </div>
             ))}

@@ -92,62 +92,91 @@ export const AssignWaiterModal: FC<AssignWaiterModalProps> = ({
           ) : waiters.length === 0 ? (
             <div className="text-center py-8">
               <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-3" />
-              <p className="text-slate-300">No hay meseros disponibles</p>
+              <p className="text-slate-300">No hay meseros registrados</p>
               <p className="text-slate-500 text-sm mt-1">
-                Asegúrate de que haya meseros activos registrados
+                Registra meseros en el sistema para poder asignarles órdenes
               </p>
             </div>
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-slate-400 mb-4">
-                Selecciona un mesero (ordenados por menos órdenes activas):
+                Selecciona un mesero ({waiters.length} disponible{waiters.length !== 1 ? 's' : ''}):
               </p>
-              {waiters.map((waiter, index) => (
-                <button
-                  key={waiter.username}
-                  onClick={() => setSelectedWaiter(waiter.username)}
-                  className={`w-full p-4 rounded-xl border transition-all ${
-                    selectedWaiter === waiter.username
-                      ? 'border-emerald-500 bg-emerald-500/10'
-                      : 'border-slate-600 hover:border-slate-500 bg-slate-700/50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        index === 0 ? 'bg-emerald-500/20' : 'bg-slate-600'
-                      }`}>
-                        <User className={`w-5 h-5 ${
-                          index === 0 ? 'text-emerald-400' : 'text-slate-400'
-                        }`} />
+              {waiters.map((waiter, index) => {
+                const isFirstActive = index === 0 && waiter.active
+                const isInactive = !waiter.active
+                
+                return (
+                  <button
+                    key={waiter.username}
+                    onClick={() => !isInactive && setSelectedWaiter(waiter.username)}
+                    disabled={isInactive}
+                    className={`w-full p-4 rounded-xl border transition-all ${
+                      isInactive
+                        ? 'border-slate-700 bg-slate-800/50 opacity-50 cursor-not-allowed'
+                        : selectedWaiter === waiter.username
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-slate-600 hover:border-slate-500 bg-slate-700/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          isInactive 
+                            ? 'bg-slate-700' 
+                            : isFirstActive 
+                              ? 'bg-emerald-500/20' 
+                              : 'bg-slate-600'
+                        }`}>
+                          <User className={`w-5 h-5 ${
+                            isInactive 
+                              ? 'text-slate-500' 
+                              : isFirstActive 
+                                ? 'text-emerald-400' 
+                                : 'text-slate-400'
+                          }`} />
+                        </div>
+                        <div className="text-left">
+                          <div className="flex items-center gap-2">
+                            <p className={`font-medium ${isInactive ? 'text-slate-500' : 'text-white'}`}>
+                              {waiter.username}
+                            </p>
+                            {isInactive && (
+                              <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400">
+                                Inactivo
+                              </span>
+                            )}
+                          </div>
+                          {waiter.email && (
+                            <p className={`text-xs ${isInactive ? 'text-slate-600' : 'text-slate-400'}`}>
+                              {waiter.email}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-left">
-                        <p className="font-medium text-white">{waiter.username}</p>
-                        {waiter.email && (
-                          <p className="text-xs text-slate-400">{waiter.email}</p>
-                        )}
+                      <div className="flex items-center gap-2">
+                        <Package className={`w-4 h-4 ${isInactive ? 'text-slate-600' : 'text-slate-400'}`} />
+                        <span className={`text-sm font-medium ${
+                          isInactive
+                            ? 'text-slate-600'
+                            : waiter.activeOrdersCount === 0 
+                              ? 'text-emerald-400' 
+                              : waiter.activeOrdersCount <= 3 
+                                ? 'text-amber-400' 
+                                : 'text-red-400'
+                        }`}>
+                          {waiter.activeOrdersCount} orden{waiter.activeOrdersCount !== 1 ? 'es' : ''}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-slate-400" />
-                      <span className={`text-sm font-medium ${
-                        waiter.activeOrdersCount === 0 
-                          ? 'text-emerald-400' 
-                          : waiter.activeOrdersCount <= 3 
-                            ? 'text-amber-400' 
-                            : 'text-red-400'
-                      }`}>
-                        {waiter.activeOrdersCount} orden{waiter.activeOrdersCount !== 1 ? 'es' : ''}
-                      </span>
-                    </div>
-                  </div>
-                  {index === 0 && (
-                    <div className="mt-2 text-xs text-emerald-400 text-left">
-                      ⭐ Recomendado - Menos órdenes activas
-                    </div>
-                  )}
-                </button>
-              ))}
+                    {isFirstActive && (
+                      <div className="mt-2 text-xs text-emerald-400 text-left">
+                        ⭐ Recomendado - Menos órdenes activas
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>

@@ -5,6 +5,7 @@ export interface WaiterWithOrdersDto {
   username: string
   email: string
   activeOrdersCount: number
+  active: boolean // Indica si el mesero está habilitado
 }
 
 export const waiterService = {
