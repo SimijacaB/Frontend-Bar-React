@@ -225,9 +225,10 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
                           </button>
                         </div>
                       </td>
-                    </tr>
+                      </tr>
                   ))
                 )}
+
               </tbody>
             </table>
           </div>
@@ -778,6 +779,7 @@ const ProductsTab: FC<ProductsTabProps> = ({
 interface StockTabProps {
   stock: InventoryResponseDto[]
   ingredients: IngredientDto[]
+  products: ProductResponseDto[]
   isLoading: boolean
   onRefresh: () => void
   onAddStock: (quantity: number, code: string) => Promise<void>
@@ -788,18 +790,20 @@ interface StockTabProps {
 const StockTab: FC<StockTabProps> = ({
   stock,
   ingredients,
+  products,
   isLoading,
   onRefresh,
   onAddStock,
   onDeductStock,
   onCreateStock,
 }) => {
+  const [stockView, setStockView] = useState<'ingredients' | 'products'>('ingredients')
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'deduct' | 'create'>('add')
   const [selectedItem, setSelectedItem] = useState<InventoryResponseDto | null>(null)
   const [quantity, setQuantity] = useState(0)
-  const [selectedIngredientCode, setSelectedIngredientCode] = useState('')
+  const [selectedCode, setSelectedCode] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
   const filteredStock = (stock || []).filter(item =>
@@ -807,17 +811,30 @@ const StockTab: FC<StockTabProps> = ({
     item.code?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  const isProductCode = (code?: string) => !!code && /p$/i.test(code)
+  const isIngredientCode = (code?: string) => !!code && /i$/i.test(code)
+
+  // filter by selected subview (only items explicitly marked as product (P) or ingredient (I))
+  const filteredByView = filteredStock.filter(item =>
+    stockView === 'ingredients' ? isIngredientCode(item.code) : isProductCode(item.code)
+  )
+
   // Get ingredients that don't have stock yet
   const ingredientsWithoutStock = (ingredients || []).filter(
     ing => ing.code && !(stock || []).some(s => s.code === ing.code)
+  )
+
+  const productsWithoutStock = (products || []).filter(
+    p => p.code && !(stock || []).some(s => s.code === p.code)
   )
 
   const handleOpenModal = (mode: 'add' | 'deduct' | 'create', item?: InventoryResponseDto) => {
     setModalMode(mode)
     setSelectedItem(item || null)
     setQuantity(0)
-    if (mode === 'create' && ingredientsWithoutStock.length > 0) {
-      setSelectedIngredientCode(ingredientsWithoutStock[0].code)
+    if (mode === 'create') {
+      if (stockView === 'ingredients' && ingredientsWithoutStock.length > 0) setSelectedCode(ingredientsWithoutStock[0].code)
+      if (stockView === 'products' && productsWithoutStock.length > 0) setSelectedCode(productsWithoutStock[0].code)
     }
     setIsModalOpen(true)
   }
@@ -838,8 +855,8 @@ const StockTab: FC<StockTabProps> = ({
     setIsSaving(true)
     try {
       if (modalMode === 'create') {
-        await onCreateStock(selectedIngredientCode, quantity)
-      } else if (modalMode === 'add' && selectedItem) {
+          await onCreateStock(selectedCode, quantity)
+        } else if (modalMode === 'add' && selectedItem) {
         await onAddStock(quantity, selectedItem.code)
       } else if (modalMode === 'deduct' && selectedItem) {
         await onDeductStock(quantity, selectedItem.code)
@@ -861,6 +878,25 @@ const StockTab: FC<StockTabProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Subviews: Ingredientes / Productos */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setStockView('ingredients')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            stockView === 'ingredients' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+          }`}
+        >
+          Ingredientes ({ingredientsWithoutStock.length + (stock || []).filter(s => isIngredientCode(s.code)).length})
+        </button>
+        <button
+          onClick={() => setStockView('products')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            stockView === 'products' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+          }`}
+        >
+          Productos ({productsWithoutStock.length + (stock || []).filter(s => isProductCode(s.code)).length})
+        </button>
+      </div>
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-slate-800/50 border-slate-700">
@@ -934,7 +970,7 @@ const StockTab: FC<StockTabProps> = ({
             <RefreshCw className="w-4 h-4 mr-2" />
             Actualizar
           </Button>
-          {ingredientsWithoutStock.length > 0 && (
+          {(stockView === 'ingredients' ? ingredientsWithoutStock.length > 0 : productsWithoutStock.length > 0) && (
             <Button variant="primary" size="sm" onClick={() => handleOpenModal('create')}>
               <Plus className="w-4 h-4 mr-2" />
               Agregar Inventario
@@ -951,21 +987,27 @@ const StockTab: FC<StockTabProps> = ({
               <thead>
                 <tr className="border-b border-slate-800">
                   <th className="text-left p-4 text-slate-400 font-medium">Código</th>
-                  <th className="text-left p-4 text-slate-400 font-medium">Ingrediente</th>
+                  <th className="text-left p-4 text-slate-400 font-medium">{stockView === 'ingredients' ? 'Ingrediente' : 'Producto'}</th>
+                  <th className="text-left p-4 text-slate-400 font-medium">Unidad</th>
                   <th className="text-left p-4 text-slate-400 font-medium">Cantidad</th>
                   <th className="text-left p-4 text-slate-400 font-medium">Estado</th>
                   <th className="text-right p-4 text-slate-400 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredStock.length === 0 ? (
+                {filteredByView.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center p-8 text-slate-400">
-                      No se encontraron items en el inventario
+                    <td colSpan={6} className="text-center p-8 text-slate-400">
+                      No se encontraron items en el inventario para esta vista
                     </td>
                   </tr>
                 ) : (
-                  filteredStock.map((item) => (
+                  filteredByView.map((item) => {
+                    const matchedIngredient = ingredients.find(i => i.code === item.code)
+                    const unitLabel = matchedIngredient
+                      ? unitOfMeasureLabels[matchedIngredient.unitOfMeasure]
+                      : (stockView === 'products' ? unitOfMeasureLabels['UN'] : '-')
+                    return (
                     <tr key={item.code} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                       <td className="p-4">
                         <code className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded text-sm">
@@ -973,6 +1015,7 @@ const StockTab: FC<StockTabProps> = ({
                         </code>
                       </td>
                       <td className="p-4 text-white font-medium">{item.name}</td>
+                      <td className="p-4 text-slate-400">{unitLabel}</td>
                       <td className="p-4">
                         <span className={`text-lg font-bold ${
                           item.quantity === 0 ? 'text-red-400' :
@@ -1010,7 +1053,8 @@ const StockTab: FC<StockTabProps> = ({
                         </div>
                       </td>
                     </tr>
-                  ))
+                  )
+                  })
                 )}
               </tbody>
             </table>
@@ -1036,23 +1080,23 @@ const StockTab: FC<StockTabProps> = ({
               {modalMode === 'create' ? (
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Seleccionar Ingrediente
+                    {stockView === 'ingredients' ? 'Seleccionar Ingrediente' : 'Seleccionar Producto'}
                   </label>
                   <select
-                    value={selectedIngredientCode}
-                    onChange={(e) => setSelectedIngredientCode(e.target.value)}
+                    value={selectedCode}
+                    onChange={(e) => setSelectedCode(e.target.value)}
                     className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
                   >
-                    {ingredientsWithoutStock.map(ing => (
-                      <option key={ing.code} value={ing.code}>
-                        {ing.name} ({ing.code})
+                    {(stockView === 'ingredients' ? ingredientsWithoutStock : productsWithoutStock).map(it => (
+                      <option key={it.code} value={it.code}>
+                        {it.name} ({it.code}){stockView === 'ingredients' && ' - '}{stockView === 'ingredients' ? unitOfMeasureLabels[(it as any).unitOfMeasure] : 'Unidades (UN)'}
                       </option>
                     ))}
                   </select>
                 </div>
               ) : (
                 <div className="p-4 bg-slate-800/50 rounded-lg">
-                  <p className="text-slate-400 text-sm">Ingrediente:</p>
+                  <p className="text-slate-400 text-sm">{stockView === 'ingredients' ? 'Ingrediente:' : 'Producto:'}</p>
                   <p className="text-white font-medium">{selectedItem?.name}</p>
                   <p className="text-slate-400 text-sm mt-2">Stock actual:</p>
                   <p className="text-2xl font-bold text-emerald-400">{selectedItem?.quantity}</p>
@@ -1357,6 +1401,7 @@ const InventoryPanel: FC = () => {
             <StockTab
               stock={stock}
               ingredients={ingredients}
+              products={products}
               isLoading={isLoadingStock}
               onRefresh={fetchStock}
               onAddStock={handleAddStock}
