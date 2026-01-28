@@ -311,7 +311,7 @@ const IngredientsPage: FC = () => {
               {/* Code */}
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">
-                  Código (opcional)
+                  Código
                 </label>
                 <input
                   type="text"

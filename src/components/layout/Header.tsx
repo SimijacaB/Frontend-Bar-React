@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FC } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Menu, X, ShoppingCart, User, LogOut, LayoutDashboard, UtensilsCrossed, ClipboardList, Package, QrCode, Users, TableProperties, PlusCircle } from 'lucide-react'
+import { Menu, X, ShoppingCart, User, LogOut, LayoutDashboard, UtensilsCrossed, ClipboardList, Package, QrCode, Users, TableProperties } from 'lucide-react'
 import { useCart } from '../../features/products/context/CartContext'
 import { useAuth } from '../../features/auth/context/AuthContext'
 import beerIcon from '../../assets/icons/Beer Icon 48.png'
@@ -11,7 +11,7 @@ const Header: FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { itemCount } = useCart()
-  const { user, isAuthenticated, isLoading, logout } = useAuth()
+  const { user, isAuthenticated, logout } = useAuth()
 
   // Check if user is admin (has ADMIN role)
   const isAdmin = user?.roles?.includes('ADMIN') ?? false

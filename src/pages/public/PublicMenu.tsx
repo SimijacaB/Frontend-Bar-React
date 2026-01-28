@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { 
   Wine, Beer, GlassWater, Grape, Search, Loader2, 
   ShoppingCart, Plus, Minus, Send, X, User,
-  Trash2, ArrowLeft, Home
+  Trash2, ArrowLeft
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { productService } from '../../features/products/api/productService'

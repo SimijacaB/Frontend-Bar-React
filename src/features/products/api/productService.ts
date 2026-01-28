@@ -2,7 +2,6 @@ import apiClient from '../../../lib/axios'
 import { API_ENDPOINTS } from '../../../config/api'
 import type { 
   ProductDto, 
-  ProductDetailDto, 
   ProductResponseDto, 
   ProductRequestDto, 
   UpdateProductDto 

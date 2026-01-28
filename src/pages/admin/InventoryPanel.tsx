@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, Badge, LoadingState } from '../../components/ui'
 import Button from '../../components/ui/Button'
+import CodeInput from '../../components/ui/CodeInput'
 import { ingredientService } from '../../features/ingredients/api/ingredientService'
 import { productService } from '../../features/products/api/productService'
 import { inventoryService } from '../../features/inventory/api/inventoryService'
@@ -54,6 +55,10 @@ const categoryColors: Record<string, string> = {
   COCKTAILS: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   JUICES: 'bg-green-500/20 text-green-400 border-green-500/30',
 }
+
+// Strict code format: 1 letter + 2 digits - 2-3 letter unit - 4 digits + 1 letter (example: A10-GR-0020A or A10-ONZ-0020A)
+const STRICT_CODE_REGEX = /^[A-Z][0-9]{2}-[A-Z]{2,3}-[0-9]{4}[A-Z]$/
+const isValidCode = (code?: string) => !!code && STRICT_CODE_REGEX.test(code)
 
 // ========================
 // INGREDIENTS TAB
@@ -112,6 +117,11 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
     e.preventDefault()
     if (!formData.name.trim()) {
       toast.error('El nombre es requerido')
+      return
+    }
+
+    if (formData.code && !isValidCode(formData.code)) {
+      toast.error('El código debe seguir el formato A99-AA-9999A')
       return
     }
 
@@ -250,13 +260,12 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Código (opcional)</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-medium text-slate-300 mb-2">Código *</label>
+                <CodeInput
                   value={formData.code || ''}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="ING-001"
+                  onChange={(val) => setFormData({ ...formData, code: val })}
+                  unitOptions={Object.entries(unitOfMeasureLabels).map(([value, label]) => ({ value, label }))}
+                  fixedSuffix={"I"}
                 />
               </div>
 
@@ -390,6 +399,10 @@ const ProductsTab: FC<ProductsTabProps> = ({
     e.preventDefault()
     if (!formData.name.trim() || !formData.code?.trim()) {
       toast.error('Nombre y código son requeridos')
+      return
+    }
+    if (!isValidCode(formData.code)) {
+      toast.error('El código debe seguir el formato A99-AA-9999A')
       return
     }
 
@@ -595,16 +608,14 @@ const ProductsTab: FC<ProductsTabProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Código *</label>
-                  <input
-                    type="text"
+                  <CodeInput
                     value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="PROD-001"
-                    required
+                    onChange={(val) => setFormData({ ...formData, code: val })}
+                    unitOptions={Object.entries(unitOfMeasureLabels).map(([value, label]) => ({ value, label }))}
+                    fixedSuffix={"P"}
                   />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-300 mb-2">Nombre *</label>
                   <input
                     type="text"
