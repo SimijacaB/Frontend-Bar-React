@@ -835,8 +835,9 @@ const StockTab: FC<StockTabProps> = ({
     ing => ing.code && !(stock || []).some(s => s.code === ing.code)
   )
 
+  // Only non-prepared products can have stock (prepared products derive availability from ingredients)
   const productsWithoutStock = (products || []).filter(
-    p => p.code && !(stock || []).some(s => s.code === p.code)
+    p => p.code && !p.isPrepared && !(stock || []).some(s => s.code === p.code)
   )
 
   const handleOpenModal = (mode: 'add' | 'deduct' | 'create', item?: InventoryResponseDto) => {
