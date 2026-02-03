@@ -836,8 +836,9 @@ const StockTab: FC<StockTabProps> = ({
   )
 
   // Only non-prepared products can have stock (prepared products derive availability from ingredients)
+  // Use strict equality check to handle null/undefined from backend
   const productsWithoutStock = (products || []).filter(
-    p => p.code && !p.isPrepared && !(stock || []).some(s => s.code === p.code)
+    p => p.code && p.isPrepared !== true && !(stock || []).some(s => s.code === p.code)
   )
 
   const handleOpenModal = (mode: 'add' | 'deduct' | 'create', item?: InventoryResponseDto) => {
