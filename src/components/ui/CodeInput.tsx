@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface CodeInputProps {
   value?: string
@@ -12,6 +12,7 @@ interface CodeInputProps {
 }
 
 const pad = (numStr: string, len: number) => numStr.padStart(len, '0')
+const CODE_REGEX = /^([A-Z])(\d{2})-([A-Z]{2,3})-(\d{4})([A-Z])$/i
 
 export default function CodeInput({
   value = '',
@@ -32,19 +33,26 @@ export default function CodeInput({
   const [unit, setUnit] = useState<string>(unitOptions[0].value)
   const [rawFourDigits, setRawFourDigits] = useState<string>('')
   const [suffix, setSuffix] = useState<string>(suffixOptions[0] || 'A')
+  const [hasUserInteracted, setHasUserInteracted] = useState(false)
+  const isSyncingRef = useRef(false)
 
   // parse incoming value
   useEffect(() => {
     if (!value) return
-    const m = value.match(/^([A-Z])(\d{2})-([A-Z]{2,3})-(\d{4})([A-Z])$/)
+    const m = value.match(CODE_REGEX)
     if (m) {
+      isSyncingRef.current = true
       // if fixed prefix provided, keep it; otherwise use parsed
-      if (!fixedPrefix) setPrefix(m[1])
-      setRawTwoDigits(String(Number(m[2])))
-      setUnit(m[3])
-      setRawFourDigits(String(Number(m[4])))
-      if (!fixedSuffix) setSuffix(m[5])
+      if (!fixedPrefix) setPrefix(m[1].toUpperCase())
+      setRawTwoDigits(m[2])
+      setUnit(m[3].toUpperCase())
+      setRawFourDigits(m[4])
+      if (!fixedSuffix) setSuffix(m[5].toUpperCase())
     }
+  }, [value, fixedPrefix, fixedSuffix])
+
+  useEffect(() => {
+    setHasUserInteracted(false)
   }, [value])
 
   // combine and emit
@@ -55,9 +63,19 @@ export default function CodeInput({
     const p = fixedPrefix ?? prefix
     const s = fixedSuffix ?? suffix
     const combined = `${p}${pad(two, 2)}-${unit}-${pad(four, 4)}${s}`
-    onChange(combined)
+
+    if (isSyncingRef.current) {
+      if (value && combined.toUpperCase() === value.toUpperCase()) {
+        isSyncingRef.current = false
+      }
+      return
+    }
+
+    if (!hasUserInteracted && value && !CODE_REGEX.test(value)) return
+
+    if (combined !== value) onChange(combined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefix, rawTwoDigits, unit, rawFourDigits, suffix, fixedPrefix, fixedSuffix])
+  }, [prefix, rawTwoDigits, unit, rawFourDigits, suffix, fixedPrefix, fixedSuffix, value, hasUserInteracted])
 
   return (
     <div className="w-full flex gap-2 items-center">
@@ -66,7 +84,10 @@ export default function CodeInput({
       ) : (
         <select
           value={prefix}
-          onChange={(e) => setPrefix(e.target.value)}
+          onChange={(e) => {
+            setHasUserInteracted(true)
+            setPrefix(e.target.value)
+          }}
           className="flex-none px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
         >
           {prefixOptions.map(p => (
@@ -81,6 +102,7 @@ export default function CodeInput({
         pattern="\d*"
         value={rawTwoDigits}
         onChange={(e) => {
+          setHasUserInteracted(true)
           const digits = e.target.value.replace(/\D/g, '').slice(0, 2)
           setRawTwoDigits(digits)
         }}
@@ -93,7 +115,10 @@ export default function CodeInput({
 
       <select
         value={unit}
-        onChange={(e) => setUnit(e.target.value)}
+        onChange={(e) => {
+          setHasUserInteracted(true)
+          setUnit(e.target.value)
+        }}
         className="flex-none px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
       >
         {unitOptions.map(u => (
@@ -109,6 +134,7 @@ export default function CodeInput({
         pattern="\d*"
         value={rawFourDigits}
         onChange={(e) => {
+          setHasUserInteracted(true)
           const digits = e.target.value.replace(/\D/g, '').slice(0, 4)
           setRawFourDigits(digits)
         }}
@@ -122,7 +148,10 @@ export default function CodeInput({
       ) : (
         <select
           value={suffix}
-          onChange={(e) => setSuffix(e.target.value)}
+          onChange={(e) => {
+            setHasUserInteracted(true)
+            setSuffix(e.target.value)
+          }}
           className="flex-none px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"
         >
           {suffixOptions.map(s => (
