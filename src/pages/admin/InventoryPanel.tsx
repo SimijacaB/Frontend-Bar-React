@@ -60,6 +60,16 @@ const categoryColors: Record<string, string> = {
 const STRICT_CODE_REGEX = /^[A-Z][0-9]{2}-[A-Z]{2,3}-[0-9]{4}[A-Z]$/
 const isValidCode = (code?: string) => !!code && STRICT_CODE_REGEX.test(code)
 
+// Opciones de cantidad para inventario de ingredientes (50ml - 2000ml en saltos de 25ml)
+const generateQuantityOptions = () => {
+  const options: number[] = []
+  for (let i = 50; i <= 2000; i += 25) {
+    options.push(i)
+  }
+  return options
+}
+const QUANTITY_OPTIONS = generateQuantityOptions()
+
 // ========================
 // INGREDIENTS TAB
 // ========================
@@ -646,9 +656,11 @@ const ProductsTab: FC<ProductsTabProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
-                    value={formData.price}
+                    value={formData.price || ''}
                     onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                    onKeyDown={(e) => (e.key === '-' || e.key === 'e' || e.key === 'E') && e.preventDefault()}
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="0"
                     required
                   />
                 </div>
@@ -670,7 +682,8 @@ const ProductsTab: FC<ProductsTabProps> = ({
                     type="number"
                     value={formData.photoId || ''}
                     onChange={(e) => setFormData({ ...formData, photoId: e.target.value ? parseInt(e.target.value) : undefined })}
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                    onKeyDown={(e) => (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') && e.preventDefault()}
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     placeholder="1"
                   />
                 </div>
@@ -748,9 +761,11 @@ const ProductsTab: FC<ProductsTabProps> = ({
                                   type="number"
                                   min="0.1"
                                   step="0.1"
-                                  value={amount}
+                                  value={amount || ''}
                                   onChange={(e) => updateIngredientAmount(ingredient.id, parseFloat(e.target.value) || 0)}
-                                  className="w-20 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-emerald-500 text-center"
+                                  onKeyDown={(e) => (e.key === '-' || e.key === 'e' || e.key === 'E') && e.preventDefault()}
+                                  className="w-20 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-emerald-500 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  placeholder="0"
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               </div>
@@ -844,7 +859,8 @@ const StockTab: FC<StockTabProps> = ({
   const handleOpenModal = (mode: 'add' | 'deduct' | 'create', item?: InventoryResponseDto) => {
     setModalMode(mode)
     setSelectedItem(item || null)
-    setQuantity(0)
+    // Set default quantity for ingredient creation/addition to 50ml
+    setQuantity((mode === 'create' || mode === 'add') && stockView === 'ingredients' ? 50 : 0)
     if (mode === 'create') {
       if (stockView === 'ingredients' && ingredientsWithoutStock.length > 0) setSelectedCode(ingredientsWithoutStock[0].code)
       if (stockView === 'products' && productsWithoutStock.length > 0) setSelectedCode(productsWithoutStock[0].code)
@@ -1121,16 +1137,33 @@ const StockTab: FC<StockTabProps> = ({
                   {modalMode === 'create' ? 'Cantidad Inicial' :
                    modalMode === 'add' ? 'Cantidad a Agregar' : 'Cantidad a Descontar'}
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  max={modalMode === 'deduct' ? selectedItem?.quantity : undefined}
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="Ingresa la cantidad"
-                  required
-                />
+                {(modalMode === 'create' || modalMode === 'add') && stockView === 'ingredients' ? (
+                  <select
+                    value={quantity || 50}
+                    onChange={(e) => setQuantity(parseInt(e.target.value))}
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                    required
+                  >
+                    <option value="">Seleccionar cantidad</option>
+                    {QUANTITY_OPTIONS.map(qty => (
+                      <option key={qty} value={qty}>
+                        {qty}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="number"
+                    min="1"
+                    max={modalMode === 'deduct' ? selectedItem?.quantity : undefined}
+                    value={quantity || ''}
+                    onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                    onKeyDown={(e) => (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') && e.preventDefault()}
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    placeholder="0"
+                    required
+                  />
+                )}
                 {modalMode === 'deduct' && selectedItem && (
                   <p className="text-sm text-slate-400 mt-1">
                     Máximo: {selectedItem.quantity}
