@@ -107,7 +107,7 @@ const OrdersPage: FC = () => {
     try {
       setLoadingBills(true)
       const data = await billService.getAll()
-      setBills(data)
+      setBills(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error('Error loading bills:', err)
       toast.error('Error al cargar facturas')
@@ -121,10 +121,11 @@ const OrdersPage: FC = () => {
     loadTables()
   }, [])
 
-  // Cargar facturas cuando se cambia a la pestaña de facturación
+  // Cargar facturas y refrescar órdenes cuando se cambia a la pestaña de facturación
   useEffect(() => {
     if (activeTab === 'billing' && userIsAdmin) {
       loadBills()
+      fetchOrders()
     }
   }, [activeTab, userIsAdmin])
   
@@ -612,7 +613,7 @@ const OrdersPage: FC = () => {
                                     Asignar
                                   </Button>
                                 )}
-                                {(order.status === OrderStatus.ASSIGNED || order.status === 'ASSIGNED') && (
+                                {(order.status === OrderStatus.ASSIGNED || order.status === 'ASSIGNED') && isWaiter && !userIsAdmin && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -665,13 +666,13 @@ const OrdersPage: FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === OrderStatus.READY).length === 0 ? (
+                      {orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === 'DELIVERED').length === 0 ? (
                         <div className="text-center py-8">
                           <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                          <p className="text-slate-400">No hay facturas pendientes</p>
+                          <p className="text-slate-400">No hay órdenes entregadas pendientes de facturar</p>
                         </div>
                       ) : (
-                        orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === OrderStatus.READY).map((order) => (
+                        orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === 'DELIVERED').map((order) => (
                           <div key={order.id} className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
                             <div className="flex items-center justify-between">
                               <div>
@@ -785,7 +786,7 @@ const OrdersPage: FC = () => {
                                 })}
                               </p>
                               <p className="text-slate-400 text-sm mt-1">
-                                {bill.items.length} {bill.items.length === 1 ? 'producto' : 'productos'}
+                                {bill.items?.length ?? 0} {(bill.items?.length ?? 0) === 1 ? 'producto' : 'productos'}
                               </p>
                               {bill.createdBy && (
                                 <p className="text-slate-400 text-sm">Creada por: {bill.createdBy}</p>
