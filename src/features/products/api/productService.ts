@@ -83,7 +83,7 @@ export const productService = {
 
   // Update product
   async update(product: UpdateProductDto): Promise<ProductResponseDto> {
-    const response = await apiClient.put(API_ENDPOINTS.PRODUCTS.UPDATE, product)
+    const response = await apiClient.put(API_ENDPOINTS.PRODUCTS.UPDATE(product.id), product)
     return response.data
   },
 

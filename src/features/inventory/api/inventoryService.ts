@@ -33,24 +33,24 @@ export const inventoryService = {
 
   /**
    * Add stock to an ingredient
-   * @param quantity - Amount to add
    * @param code - Ingredient code
+   * @param quantity - Amount to add
    */
-  addStock: async (quantity: number, code: string): Promise<InventoryResponseDto> => {
-    const response = await axios.put<InventoryResponseDto>(
-      API_ENDPOINTS.INVENTORY.ADD_STOCK(quantity, code)
+  addStock: async (code: string, quantity: number): Promise<InventoryResponseDto> => {
+    const response = await axios.patch<InventoryResponseDto>(
+      API_ENDPOINTS.INVENTORY.ADD_STOCK(code, quantity)
     )
     return response.data
   },
 
   /**
    * Deduct stock from an ingredient
-   * @param quantity - Amount to deduct
    * @param code - Ingredient code
+   * @param quantity - Amount to deduct
    */
-  deductStock: async (quantity: number, code: string): Promise<InventoryResponseDto> => {
-    const response = await axios.put<InventoryResponseDto>(
-      API_ENDPOINTS.INVENTORY.DEDUCT_STOCK(quantity, code)
+  deductStock: async (code: string, quantity: number): Promise<InventoryResponseDto> => {
+    const response = await axios.patch<InventoryResponseDto>(
+      API_ENDPOINTS.INVENTORY.DEDUCT_STOCK(code, quantity)
     )
     return response.data
   },

@@ -246,13 +246,22 @@ export interface UpdateOrderDto {
   notes?: string
 }
 
-// Bill Types
+// Bill Types (matching backend BillDTO)
+export interface OrderItemDto {
+  id: number
+  productName: string
+  quantity: number
+  price: number
+}
+
 export interface BillDto {
   id: number
-  totalAmount: number
-  date: string
+  billNumber: string
   clientName: string
-  orders: OrderDto[]
+  billingDate: string
+  totalAmount: number
+  createdBy?: string
+  items: OrderItemDto[]
 }
 
 // Auth Types

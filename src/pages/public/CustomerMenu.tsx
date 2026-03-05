@@ -173,7 +173,7 @@ const CustomerMenu: FC = () => {
     }
     setLoadingOrders(true)
     try {
-      // Use the specific endpoint: /api/order/find-by-table-number/{tableNumber}
+      // Use the specific endpoint: GET /api/orders/table/{tableNumber}
       const data = await orderService.getByTableNumber(tableNumber)
       console.log(`Fetched orders for table ${tableNumber}:`, data)
       setMyOrders(data)

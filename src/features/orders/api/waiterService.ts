@@ -15,7 +15,7 @@ export const waiterService = {
    * Solo accesible por ADMIN.
    */
   async getWaitersWithOrders(): Promise<WaiterWithOrdersDto[]> {
-    const response = await apiClient.get(API_ENDPOINTS.WAITERS.WITH_ORDERS)
+    const response = await apiClient.get(API_ENDPOINTS.WAITERS.ALL)
     return response.data
   },
 }

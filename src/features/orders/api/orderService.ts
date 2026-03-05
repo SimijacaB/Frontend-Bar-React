@@ -87,32 +87,32 @@ export const orderService = {
   },
 
   // Update order
-  async update(order: UpdateOrderDto): Promise<OrderDetailDto> {
-    const response = await apiClient.put(API_ENDPOINTS.ORDERS.UPDATE, order)
+  async update(id: number, order: UpdateOrderDto): Promise<OrderDetailDto> {
+    const response = await apiClient.put(API_ENDPOINTS.ORDERS.UPDATE(id), order)
     return response.data
   },
 
   // Add item to order
   async addItem(orderId: number, item: CreateOrderItemDto): Promise<OrderDetailDto> {
-    const response = await apiClient.put(API_ENDPOINTS.ORDERS.ADD_ITEM(orderId), item)
+    const response = await apiClient.patch(API_ENDPOINTS.ORDERS.ADD_ITEM(orderId), item)
     return response.data
   },
 
   // Remove item from order
   async removeItem(orderId: number, itemId: number, quantity: number): Promise<OrderDetailDto> {
-    const response = await apiClient.put(API_ENDPOINTS.ORDERS.REMOVE_ITEM(orderId, itemId, quantity))
+    const response = await apiClient.delete(API_ENDPOINTS.ORDERS.REMOVE_ITEM(orderId, itemId, quantity))
     return response.data
   },
 
   // Change order status
   async changeStatus(orderId: number, status: OrderStatus | string): Promise<OrderDetailDto> {
-    const response = await apiClient.patch(API_ENDPOINTS.ORDERS.CHANGE_STATUS(orderId, status))
+    const response = await apiClient.patch(API_ENDPOINTS.ORDERS.CHANGE_STATUS(orderId), { status })
     return response.data
   },
 
   // Update order status (alias for WaiterPanel)
   updateOrderStatus: async (orderId: number, status: string): Promise<OrderDetailDto> => {
-    const response = await apiClient.patch(API_ENDPOINTS.ORDERS.CHANGE_STATUS(orderId, status))
+    const response = await apiClient.patch(API_ENDPOINTS.ORDERS.CHANGE_STATUS(orderId), { status })
     return response.data
   },
 

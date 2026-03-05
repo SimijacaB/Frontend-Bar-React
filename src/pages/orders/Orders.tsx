@@ -11,7 +11,8 @@ import {
   Receipt,
   TrendingUp,
   AlertCircle,
-  UserPlus
+  UserPlus,
+  Download
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, OrderStatusBadge, LoadingState } from '../../components/ui'
 import Button from '../../components/ui/Button'
@@ -19,7 +20,7 @@ import { orderService } from '../../features/orders/api/orderService'
 import { useAuth } from '../../features/auth/context/AuthContext'
 import { useOrdersFilter } from '../../features/orders/hooks/useOrdersFilter'
 import { DateFilter, CreateOrderModal, AssignWaiterModal } from '../../features/orders/components'
-import type { OrderDto, OrderDetailDto } from '../../types'
+import type { OrderDto, OrderDetailDto, BillDto } from '../../types'
 import { OrderStatus } from '../../types'
 import toast from 'react-hot-toast'
 
@@ -47,6 +48,8 @@ const OrdersPage: FC = () => {
   const [orderToAssign, setOrderToAssign] = useState<OrderDto | null>(null)
   const [tables, setTables] = useState<TableDto[]>([])
   const [loadingTables, setLoadingTables] = useState(true)
+  const [bills, setBills] = useState<BillDto[]>([])
+  const [loadingBills, setLoadingBills] = useState(false)
 
   // Check if user is admin/staff (not a regular customer)
   const isStaff = user?.roles?.some(role => ['ADMIN', 'WAITER', 'BARTENDER', 'CHEF'].includes(role)) ?? false
@@ -99,10 +102,31 @@ const OrdersPage: FC = () => {
     }
   }
 
+  // Función para cargar facturas
+  const loadBills = async () => {
+    try {
+      setLoadingBills(true)
+      const data = await billService.getAll()
+      setBills(data)
+    } catch (err) {
+      console.error('Error loading bills:', err)
+      toast.error('Error al cargar facturas')
+    } finally {
+      setLoadingBills(false)
+    }
+  }
+
   // Cargar mesas al inicio
   useEffect(() => {
     loadTables()
   }, [])
+
+  // Cargar facturas cuando se cambia a la pestaña de facturación
+  useEffect(() => {
+    if (activeTab === 'billing' && userIsAdmin) {
+      loadBills()
+    }
+  }, [activeTab, userIsAdmin])
   
   // Get table number from user if they're a customer (would come from localStorage or context)
   const customerTableNumber = !isStaff ? selectedTable : null
@@ -158,12 +182,25 @@ const OrdersPage: FC = () => {
       
       toast.success(`Factura generada para ${clientName}`)
       
-      // Refrescar órdenes y mesas después de facturar
+      // Refrescar órdenes, mesas y facturas después de facturar
       await fetchOrders()
       await loadTables()
+      await loadBills()
     } catch (err: any) {
       console.error('Error generating bill:', err)
       const errorMessage = err?.response?.data?.message || err?.message || 'Error al generar factura'
+      toast.error(errorMessage)
+    }
+  }
+
+  // Download bill PDF
+  const handleDownloadBill = async (billId: number) => {
+    try {
+      await billService.downloadAndSavePdf(billId)
+      toast.success('Factura descargada')
+    } catch (err: any) {
+      console.error('Error downloading bill:', err)
+      const errorMessage = err?.response?.data?.message || err?.message || 'Error al descargar factura'
       toast.error(errorMessage)
     }
   }
@@ -617,78 +654,162 @@ const OrdersPage: FC = () => {
 
           {/* Billing Tab Content */}
           {activeTab === 'billing' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Receipt className="w-5 h-5 text-amber-400" />
+                      Facturas Pendientes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === OrderStatus.READY).length === 0 ? (
+                        <div className="text-center py-8">
+                          <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                          <p className="text-slate-400">No hay facturas pendientes</p>
+                        </div>
+                      ) : (
+                        orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === OrderStatus.READY).map((order) => (
+                          <div key={order.id} className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-white font-semibold">Mesa {order.tableNumber} - {order.clientName}</p>
+                                <p className="text-slate-400 text-sm">Orden #{order.id}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xl font-bold text-amber-400">{formatPrice(order.valueToPay || 0)}</p>
+                                <Button 
+                                  size="sm" 
+                                  variant="primary" 
+                                  className="mt-2"
+                                  onClick={() => handleGenerateBill(order)}
+                                >
+                                  Generar Factura
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-emerald-400" />
+                      Resumen del Día
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                        <p className="text-slate-400 text-sm">Total Ventas Hoy</p>
+                        <p className="text-3xl font-bold text-emerald-400">
+                          {formatPrice(orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0))}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 rounded-xl bg-slate-800/50">
+                          <p className="text-slate-400 text-sm">Órdenes Completadas</p>
+                          <p className="text-2xl font-bold text-white">
+                            {orders.filter(o => o.status === OrderStatus.DELIVERED).length}
+                          </p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-slate-800/50">
+                          <p className="text-slate-400 text-sm">Ticket Promedio</p>
+                          <p className="text-2xl font-bold text-white">
+                            {formatPrice(orders.length > 0 ? orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0) / orders.length : 0)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Historial de Facturas Generadas */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Receipt className="w-5 h-5 text-amber-400" />
-                    Facturas Pendientes
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Receipt className="w-5 h-5 text-emerald-400" />
+                      Historial de Facturas
+                    </CardTitle>
+                    <Button 
+                      size="sm" 
+                      variant="secondary"
+                      onClick={loadBills}
+                      disabled={loadingBills}
+                    >
+                      <RefreshCw className={`w-4 h-4 ${loadingBills ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === OrderStatus.READY).length === 0 ? (
-                      <div className="text-center py-8">
-                        <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                        <p className="text-slate-400">No hay facturas pendientes</p>
-                      </div>
-                    ) : (
-                      orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === OrderStatus.READY).map((order) => (
-                        <div key={order.id} className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-white font-semibold">Mesa {order.tableNumber} - {order.clientName}</p>
-                              <p className="text-slate-400 text-sm">Orden #{order.id}</p>
+                  {loadingBills ? (
+                    <div className="text-center py-8">
+                      <LoadingState message="Cargando facturas..." />
+                    </div>
+                  ) : bills.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                      <p className="text-slate-400">No hay facturas generadas</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                      {bills.map((bill) => (
+                        <div 
+                          key={bill.id} 
+                          className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-emerald-500/30 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <p className="text-white font-semibold">Factura #{bill.billNumber}</p>
+                                <Badge variant="success" className="!bg-emerald-500/20 !text-emerald-400 !border-emerald-500/30">
+                                  Pagada
+                                </Badge>
+                              </div>
+                              <p className="text-slate-300 mb-1">Cliente: {bill.clientName}</p>
+                              <p className="text-slate-400 text-sm">
+                                Fecha: {new Date(bill.billingDate).toLocaleDateString('es-CO', { 
+                                  day: 'numeric', 
+                                  month: 'long', 
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                              <p className="text-slate-400 text-sm mt-1">
+                                {bill.items.length} {bill.items.length === 1 ? 'producto' : 'productos'}
+                              </p>
+                              {bill.createdBy && (
+                                <p className="text-slate-400 text-sm">Creada por: {bill.createdBy}</p>
+                              )}
                             </div>
                             <div className="text-right">
-                              <p className="text-xl font-bold text-amber-400">{formatPrice(order.valueToPay || 0)}</p>
+                              <p className="text-2xl font-bold text-emerald-400 mb-3">
+                                {formatPrice(bill.totalAmount)}
+                              </p>
                               <Button 
                                 size="sm" 
-                                variant="primary" 
-                                className="mt-2"
-                                onClick={() => handleGenerateBill(order)}
+                                variant="primary"
+                                onClick={() => handleDownloadBill(bill.id)}
+                                className="flex items-center gap-2"
                               >
-                                Generar Factura
+                                <Download className="w-4 h-4" />
+                                Descargar PDF
                               </Button>
                             </div>
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-emerald-400" />
-                    Resumen del Día
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                      <p className="text-slate-400 text-sm">Total Ventas Hoy</p>
-                      <p className="text-3xl font-bold text-emerald-400">
-                        {formatPrice(orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0))}
-                      </p>
+                      ))}
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 rounded-xl bg-slate-800/50">
-                        <p className="text-slate-400 text-sm">Órdenes Completadas</p>
-                        <p className="text-2xl font-bold text-white">
-                          {orders.filter(o => o.status === OrderStatus.DELIVERED).length}
-                        </p>
-                      </div>
-                      <div className="p-4 rounded-xl bg-slate-800/50">
-                        <p className="text-slate-400 text-sm">Ticket Promedio</p>
-                        <p className="text-2xl font-bold text-white">
-                          {formatPrice(orders.length > 0 ? orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0) / orders.length : 0)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

@@ -1327,7 +1327,7 @@ const InventoryPanel: FC = () => {
   // Stock handlers
   const handleAddStock = async (quantity: number, code: string) => {
     try {
-      await inventoryService.addStock(quantity, code)
+      await inventoryService.addStock(code, quantity)
       toast.success(`Se agregaron ${quantity} unidades`)
       fetchStock()
     } catch (error) {
@@ -1339,7 +1339,7 @@ const InventoryPanel: FC = () => {
 
   const handleDeductStock = async (quantity: number, code: string) => {
     try {
-      await inventoryService.deductStock(quantity, code)
+      await inventoryService.deductStock(code, quantity)
       toast.success(`Se descontaron ${quantity} unidades`)
       fetchStock()
     } catch (error) {

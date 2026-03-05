@@ -39,7 +39,7 @@ export const ingredientService = {
    * Actualiza un ingrediente existente
    */
   async update(ingredient: UpdateIngredientDto): Promise<IngredientDto> {
-    const response = await apiClient.put(API_ENDPOINTS.INGREDIENTS.UPDATE, ingredient)
+    const response = await apiClient.put(API_ENDPOINTS.INGREDIENTS.UPDATE(ingredient.id), ingredient)
     return response.data
   },
 
