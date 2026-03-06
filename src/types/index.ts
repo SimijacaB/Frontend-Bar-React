@@ -301,3 +301,14 @@ export interface ApiResponse<T> {
   message?: string
   success: boolean
 }
+
+// Spring Page response (server-side pagination)
+export interface PagedResponse<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  number: number   // página actual (0-indexed desde el backend)
+  size: number
+  first: boolean
+  last: boolean
+}

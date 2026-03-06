@@ -1,13 +1,12 @@
 import { useState, useEffect, type FC } from 'react'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  RefreshCw, 
-  MapPin, 
-  Users, 
-  CheckCircle, 
-  XCircle,
+import {
+  Plus,
+  Edit,
+  Trash2,
+  RefreshCw,
+  MapPin,
+  Users,
+  CheckCircle,
   AlertCircle,
   Search,
   Filter
@@ -16,8 +15,7 @@ import toast from 'react-hot-toast'
 import { tableService, type TableDto, type TableRequestDto } from '../../features/tables/api/tableService'
 import { useAuth } from '../../features/auth/context/AuthContext'
 import Button from '../../components/ui/Button'
-import { Input } from '../../components/ui'
-import { Card, CardContent } from '../../components/ui'
+import { Input, Card, CardContent, LoadingState, Modal } from '../../components/ui'
 
 const statusConfig = {
   FREE: { 
@@ -331,9 +329,8 @@ const TableManagement: FC = () => {
 
         {/* Tables Grid */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="w-12 h-12 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-slate-400">Cargando mesas...</p>
+          <div className="py-12">
+            <LoadingState message="Cargando mesas..." />
           </div>
         ) : filteredTables.length === 0 ? (
           <Card>
@@ -435,10 +432,10 @@ const TableManagement: FC = () => {
                         </Button>
                         <Button
                           size="sm"
-                          variant="ghost"
+                          variant="danger"
                           leftIcon={<Trash2 className="w-3 h-3" />}
                           onClick={() => handleDelete(table)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          className="flex-1"
                         >
                           Eliminar
                         </Button>
@@ -452,158 +449,104 @@ const TableManagement: FC = () => {
         )}
 
         {/* Create Modal */}
-        {isCreateModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="bg-slate-900 rounded-2xl w-full max-w-md p-6 border border-slate-700">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Nueva Mesa</h2>
-                <button
-                  onClick={closeModals}
-                  className="p-2 hover:bg-slate-800 rounded-lg text-slate-400"
-                >
-                  <XCircle className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-slate-400 text-sm mb-2">
-                    Número de Mesa *
-                  </label>
-                  <Input
-                    type="number"
-                    value={formData.number || ''}
-                    onChange={(e) => setFormData({ ...formData, number: parseInt(e.target.value) || 0 })}
-                    placeholder="Ej: 1"
-                    min={1}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-400 text-sm mb-2">
-                    Capacidad (Asientos) *
-                  </label>
-                  <Input
-                    type="number"
-                    value={formData.capacity || ''}
-                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
-                    placeholder="Ej: 4"
-                    min={1}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-400 text-sm mb-2">
-                    Notas (Opcional)
-                  </label>
-                  <textarea
-                    value={formData.notes || ''}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Notas adicionales sobre la mesa..."
-                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    variant="secondary"
-                    onClick={closeModals}
-                    className="flex-1"
-                    disabled={isSubmitting}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleCreate}
-                    className="flex-1"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Creando...' : 'Crear Mesa'}
-                  </Button>
-                </div>
-              </div>
+        <Modal
+          isOpen={isCreateModalOpen}
+          onClose={closeModals}
+          title="Nueva Mesa"
+          footer={
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={closeModals} className="flex-1" disabled={isSubmitting}>
+                Cancelar
+              </Button>
+              <Button variant="primary" onClick={handleCreate} className="flex-1" isLoading={isSubmitting}>
+                Crear Mesa
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-slate-400 text-sm mb-2">Número de Mesa *</label>
+              <Input
+                type="number"
+                value={formData.number || ''}
+                onChange={(e) => setFormData({ ...formData, number: parseInt(e.target.value) || 0 })}
+                placeholder="Ej: 1"
+                min={1}
+              />
+            </div>
+            <div>
+              <label className="block text-slate-400 text-sm mb-2">Capacidad (Asientos) *</label>
+              <Input
+                type="number"
+                value={formData.capacity || ''}
+                onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                placeholder="Ej: 4"
+                min={1}
+              />
+            </div>
+            <div>
+              <label className="block text-slate-400 text-sm mb-2">Notas (Opcional)</label>
+              <textarea
+                value={formData.notes || ''}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Notas adicionales sobre la mesa..."
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none"
+                rows={3}
+              />
             </div>
           </div>
-        )}
+        </Modal>
 
         {/* Edit Modal */}
-        {isEditModalOpen && selectedTable && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="bg-slate-900 rounded-2xl w-full max-w-md p-6 border border-slate-700">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Editar Mesa {selectedTable.number}</h2>
-                <button
-                  onClick={closeModals}
-                  className="p-2 hover:bg-slate-800 rounded-lg text-slate-400"
-                >
-                  <XCircle className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-slate-400 text-sm mb-2">
-                    Número de Mesa *
-                  </label>
-                  <Input
-                    type="number"
-                    value={formData.number || ''}
-                    onChange={(e) => setFormData({ ...formData, number: parseInt(e.target.value) || 0 })}
-                    placeholder="Ej: 1"
-                    min={1}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-400 text-sm mb-2">
-                    Capacidad (Asientos) *
-                  </label>
-                  <Input
-                    type="number"
-                    value={formData.capacity || ''}
-                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
-                    placeholder="Ej: 4"
-                    min={1}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-400 text-sm mb-2">
-                    Notas (Opcional)
-                  </label>
-                  <textarea
-                    value={formData.notes || ''}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Notas adicionales sobre la mesa..."
-                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    variant="secondary"
-                    onClick={closeModals}
-                    className="flex-1"
-                    disabled={isSubmitting}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleEdit}
-                    className="flex-1"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-                  </Button>
-                </div>
-              </div>
+        <Modal
+          isOpen={isEditModalOpen && !!selectedTable}
+          onClose={closeModals}
+          title={`Editar Mesa ${selectedTable?.number ?? ''}`}
+          footer={
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={closeModals} className="flex-1" disabled={isSubmitting}>
+                Cancelar
+              </Button>
+              <Button variant="primary" onClick={handleEdit} className="flex-1" isLoading={isSubmitting}>
+                Guardar Cambios
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-slate-400 text-sm mb-2">Número de Mesa *</label>
+              <Input
+                type="number"
+                value={formData.number || ''}
+                onChange={(e) => setFormData({ ...formData, number: parseInt(e.target.value) || 0 })}
+                placeholder="Ej: 1"
+                min={1}
+              />
+            </div>
+            <div>
+              <label className="block text-slate-400 text-sm mb-2">Capacidad (Asientos) *</label>
+              <Input
+                type="number"
+                value={formData.capacity || ''}
+                onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                placeholder="Ej: 4"
+                min={1}
+              />
+            </div>
+            <div>
+              <label className="block text-slate-400 text-sm mb-2">Notas (Opcional)</label>
+              <textarea
+                value={formData.notes || ''}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Notas adicionales sobre la mesa..."
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none"
+                rows={3}
+              />
             </div>
           </div>
-        )}
+        </Modal>
       </div>
     </div>
   )

@@ -6,13 +6,12 @@ import {
   Edit2,
   Trash2,
   ShoppingBag,
-  X,
   Save,
   ChevronDown,
   ChevronUp,
   Beaker
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, Badge, LoadingState } from '../../components/ui'
+import { Card, CardContent, CardHeader, CardTitle, Badge, LoadingState, Input, Modal } from '../../components/ui'
 import Button from '../../components/ui/Button'
 import { productService, type ProductForListDto } from '../../features/products/api/productService'
 import { ingredientService } from '../../features/ingredients/api/ingredientService'
@@ -341,7 +340,7 @@ const ProductsPage: FC = () => {
                     placeholder="Buscar producto..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 w-64"
+                    className="pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent w-64"
                   />
                 </div>
               </div>
@@ -352,9 +351,14 @@ const ProductsPage: FC = () => {
               ) : filteredProducts.length === 0 ? (
                 <div className="text-center py-12">
                   <ShoppingBag className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                  <p className="text-slate-400">
+                  <p className="text-slate-400 mb-4">
                     {searchTerm || categoryFilter ? 'No se encontraron productos' : 'No hay productos registrados'}
                   </p>
+                  {!searchTerm && !categoryFilter && (
+                    <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />} onClick={handleOpenCreate}>
+                      Agregar primer producto
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -410,8 +414,7 @@ const ProductsPage: FC = () => {
                               </Button>
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="!text-red-400 hover:!bg-red-500/10"
+                                variant="danger"
                                 onClick={() => handleDelete(product)}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -430,38 +433,36 @@ const ProductsPage: FC = () => {
       </section>
 
       {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-slate-900 rounded-2xl w-full max-w-2xl border border-slate-700 my-8">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-700">
-              <h3 className="text-xl font-bold text-white">
-                {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-slate-400" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+        maxWidth="xl"
+        footer={
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" form="product-form" variant="primary" className="flex-1" leftIcon={<Save className="w-4 h-4" />} isLoading={isSaving}>
+              Guardar
+            </Button>
+          </div>
+        }
+      >
+        <form id="product-form" onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Name */}
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-2">
                     Nombre *
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Ej: Daiquiri"
                     required
                     minLength={3}
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
@@ -470,14 +471,13 @@ const ProductsPage: FC = () => {
                   <label className="block text-sm font-medium text-slate-400 mb-2">
                     Código (opcional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                     placeholder="Ej: D01-ML-0008P"
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    helperText="Formato: A99-AA-9999A"
                   />
-                  <p className="text-xs text-slate-500 mt-1">Formato: A99-AA-9999A</p>
                 </div>
 
                 {/* Category */}
@@ -489,7 +489,7 @@ const ProductsPage: FC = () => {
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     required
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent"
                   >
                     {Object.entries(categoryLabels).map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
@@ -502,7 +502,7 @@ const ProductsPage: FC = () => {
                   <label className="block text-sm font-medium text-slate-400 mb-2">
                     Precio *
                   </label>
-                  <input
+                  <Input
                     type="number"
                     step="0.01"
                     min="0.01"
@@ -510,7 +510,6 @@ const ProductsPage: FC = () => {
                     onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                     placeholder="0.00"
                     required
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -526,7 +525,7 @@ const ProductsPage: FC = () => {
                   placeholder="Descripción del producto..."
                   required
                   rows={2}
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 resize-none"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent resize-none"
                 />
               </div>
 
@@ -581,7 +580,7 @@ const ProductsPage: FC = () => {
                               <select
                                 value={ing.ingredientId}
                                 onChange={(e) => handleUpdateIngredient(index, 'ingredientId', parseInt(e.target.value))}
-                                className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                                className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent"
                               >
                                 {ingredients.map(ingredient => (
                                   <option key={ingredient.id} value={ingredient.id}>
@@ -596,7 +595,7 @@ const ProductsPage: FC = () => {
                                 value={ing.amount}
                                 onChange={(e) => handleUpdateIngredient(index, 'amount', parseFloat(e.target.value) || 0)}
                                 placeholder="Cantidad"
-                                className="w-24 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                                className="w-24 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent"
                               />
                               <span className="text-slate-400 text-sm w-12">
                                 {ingredientInfo?.unitOfMeasure || '-'}
@@ -627,30 +626,8 @@ const ProductsPage: FC = () => {
                 </div>
               )}
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-slate-700">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="flex-1"
-                  leftIcon={<Save className="w-4 h-4" />}
-                  disabled={isSaving}
-                >
-                  {isSaving ? 'Guardando...' : 'Guardar'}
-                </Button>
-              </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   )
 }

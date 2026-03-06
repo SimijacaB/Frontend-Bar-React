@@ -1,5 +1,5 @@
 import { useState, useEffect, type FC } from 'react'
-import { 
+import {
   UserPlus,
   Clock,
   MapPin,
@@ -12,6 +12,8 @@ import {
 import toast from 'react-hot-toast'
 import { orderService } from '../../features/orders/api/orderService'
 import { waiterService, type WaiterWithOrdersDto } from '../../features/orders/api/waiterService'
+import { Card, CardContent, LoadingState } from '../../components/ui'
+import Button from '../../components/ui/Button'
 import type { OrderDto } from '../../types'
 
 const OrderAssignment: FC = () => {
@@ -22,13 +24,11 @@ const OrderAssignment: FC = () => {
   const [assigning, setAssigning] = useState<number | null>(null)
   const [selectedWaiter, setSelectedWaiter] = useState<Record<number, string>>({})
 
-  // Fetch unassigned orders (CREATED status)
   const fetchUnassignedOrders = async () => {
     setLoading(true)
     try {
       const data = await orderService.getUnassignedOrders()
-      // Sort by date, oldest first (FIFO)
-      const sorted = data.sort((a, b) => 
+      const sorted = data.sort((a, b) =>
         new Date(a.date || a.orderDate || 0).getTime() - new Date(b.date || b.orderDate || 0).getTime()
       )
       setUnassignedOrders(sorted)
@@ -40,7 +40,6 @@ const OrderAssignment: FC = () => {
     }
   }
 
-  // Fetch waiters from backend
   const fetchWaiters = async () => {
     setLoadingWaiters(true)
     try {
@@ -59,7 +58,6 @@ const OrderAssignment: FC = () => {
     fetchWaiters()
   }, [])
 
-  // Auto-refresh solo cuando hay órdenes sin asignar
   useEffect(() => {
     if (unassignedOrders.length > 0) {
       const interval = setInterval(fetchUnassignedOrders, 15000)
@@ -67,7 +65,6 @@ const OrderAssignment: FC = () => {
     }
   }, [unassignedOrders.length])
 
-  // Assign waiter to order
   const handleAssignWaiter = async (orderId: number) => {
     const waiterUsername = selectedWaiter[orderId]
     if (!waiterUsername) {
@@ -79,9 +76,7 @@ const OrderAssignment: FC = () => {
     try {
       await orderService.assignWaiter(orderId, waiterUsername)
       toast.success('Mesero asignado correctamente')
-      // Remove from list
       setUnassignedOrders(prev => prev.filter(o => o.id !== orderId))
-      // Clear selection
       setSelectedWaiter(prev => {
         const updated = { ...prev }
         delete updated[orderId]
@@ -97,10 +92,7 @@ const OrderAssignment: FC = () => {
 
   const formatTime = (date: string | undefined) => {
     if (!date) return '--:--'
-    return new Date(date).toLocaleTimeString('es-CO', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
+    return new Date(date).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
   }
 
   const formatPrice = (price: number | undefined) => {
@@ -116,10 +108,7 @@ const OrderAssignment: FC = () => {
   const getTimeSinceCreation = (date: string | undefined) => {
     if (!date) return ''
     const created = new Date(date)
-    const now = new Date()
-    const diffMs = now.getTime() - created.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    
+    const diffMins = Math.floor((Date.now() - created.getTime()) / 60000)
     if (diffMins < 1) return 'Hace un momento'
     if (diffMins < 60) return `Hace ${diffMins} min`
     const diffHours = Math.floor(diffMins / 60)
@@ -129,10 +118,7 @@ const OrderAssignment: FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Cargando órdenes...</p>
-        </div>
+        <LoadingState message="Cargando órdenes sin asignar..." />
       </div>
     )
   }
@@ -152,32 +138,35 @@ const OrderAssignment: FC = () => {
                 <p className="text-sm text-slate-400">Pedidos de clientes QR sin mesero</p>
               </div>
             </div>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={fetchUnassignedOrders}
-              className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400"
               title="Actualizar"
             >
-              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
 
           {/* Stats */}
-          <div className="bg-purple-500/20 border border-purple-500/30 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-6 h-6 text-purple-400" />
-                <div>
-                  <p className="text-2xl font-bold text-purple-400">{unassignedOrders.length}</p>
-                  <p className="text-xs text-purple-300">Pedidos sin asignar</p>
+          <Card className="!p-4">
+            <CardContent className="!p-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-6 h-6 text-amber-400" />
+                  <div>
+                    <p className="text-2xl font-bold text-white">{unassignedOrders.length}</p>
+                    <p className="text-xs text-slate-400">Pedidos sin asignar</p>
+                  </div>
                 </div>
+                {unassignedOrders.length > 0 && (
+                  <span className="px-3 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs text-amber-300">
+                    Requieren atención
+                  </span>
+                )}
               </div>
-              {unassignedOrders.length > 0 && (
-                <span className="px-3 py-1 bg-purple-500/30 rounded-full text-xs text-purple-300">
-                  Requieren atención
-                </span>
-              )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </header>
 
@@ -192,103 +181,100 @@ const OrderAssignment: FC = () => {
         ) : (
           <div className="space-y-4">
             {unassignedOrders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-purple-500/10 border border-purple-500/30 rounded-2xl p-4"
-              >
-                {/* Order Header */}
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg font-bold text-white">
-                        Pedido #{order.id}
-                      </span>
-                      <span className="px-2 py-0.5 bg-purple-500/30 rounded-full text-xs text-purple-300">
-                        QR Cliente
-                      </span>
+              <Card key={order.id} className="!p-4">
+                <CardContent className="!p-0">
+                  {/* Order Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg font-bold text-white">
+                          Pedido #{order.id}
+                        </span>
+                        <span className="px-2 py-0.5 bg-slate-700/60 border border-slate-600/50 rounded-full text-xs text-slate-300">
+                          QR Cliente
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          Mesa {order.tableNumber || '?'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <User className="w-4 h-4" />
+                          {order.clientName || order.customerName || 'Sin nombre'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {formatTime(order.date || order.orderDate)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        Mesa {order.tableNumber || '?'}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <User className="w-4 h-4" />
-                        {order.clientName || order.customerName || 'Sin nombre'}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {formatTime(order.date || order.orderDate)}
-                      </span>
+                    <span className="text-amber-400 text-xs font-medium">
+                      {getTimeSinceCreation(order.date || order.orderDate)}
+                    </span>
+                  </div>
+
+                  {/* Order Notes */}
+                  {order.notes && (
+                    <div className="bg-slate-800/60 rounded-lg p-2 mb-3">
+                      <p className="text-amber-400 text-sm">📝 {order.notes}</p>
                     </div>
-                  </div>
-                  <span className="text-amber-400 text-xs font-medium">
-                    {getTimeSinceCreation(order.date || order.orderDate)}
-                  </span>
-                </div>
-
-                {/* Order Notes */}
-                {order.notes && (
-                  <div className="bg-slate-900/50 rounded-lg p-2 mb-3">
-                    <p className="text-amber-400 text-sm">📝 {order.notes}</p>
-                  </div>
-                )}
-
-                {/* Order Total */}
-                <div className="flex items-center justify-between mb-4 py-2 border-t border-purple-500/20">
-                  <span className="text-slate-400">Total del pedido</span>
-                  <span className="text-emerald-400 font-bold text-lg">
-                    {formatPrice(order.valueToPay || order.total)}
-                  </span>
-                </div>
-
-                {/* Waiter Selection */}
-                <div className="bg-slate-900/50 rounded-xl p-3">
-                  <label className="flex items-center gap-2 text-sm text-slate-400 mb-2">
-                    <Users className="w-4 h-4" />
-                    Asignar mesero
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={selectedWaiter[order.id] || ''}
-                      onChange={(e) => setSelectedWaiter(prev => ({
-                        ...prev,
-                        [order.id]: e.target.value
-                      }))}
-                      className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      disabled={loadingWaiters}
-                    >
-                      <option value="">
-                        {loadingWaiters ? 'Cargando meseros...' : 'Seleccionar mesero...'}
-                      </option>
-                      {waiters
-                        .filter(waiter => waiter.active) // Solo mostrar meseros activos
-                        .map(waiter => (
-                          <option key={waiter.username} value={waiter.username}>
-                            {waiter.username} ({waiter.activeOrdersCount} órdenes activas)
-                          </option>
-                        ))}
-                    </select>
-                    <button
-                      onClick={() => handleAssignWaiter(order.id)}
-                      disabled={assigning === order.id || !selectedWaiter[order.id]}
-                      className="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg font-medium flex items-center gap-2"
-                    >
-                      {assigning === order.id ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <UserPlus className="w-4 h-4" />
-                      )}
-                      Asignar
-                    </button>
-                  </div>
-                  {waiters.filter(w => w.active).length === 0 && !loadingWaiters && (
-                    <p className="text-amber-400 text-xs mt-2">
-                      ⚠️ No hay meseros activos registrados
-                    </p>
                   )}
-                </div>
-              </div>
+
+                  {/* Order Total */}
+                  <div className="flex items-center justify-between mb-4 py-2 border-t border-slate-700/50">
+                    <span className="text-slate-400">Total del pedido</span>
+                    <span className="text-emerald-400 font-bold text-lg">
+                      {formatPrice(order.valueToPay || order.total)}
+                    </span>
+                  </div>
+
+                  {/* Waiter Selection */}
+                  <div className="bg-slate-800/40 rounded-xl p-3">
+                    <label className="flex items-center gap-2 text-sm text-slate-400 mb-2">
+                      <Users className="w-4 h-4" />
+                      Asignar mesero
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedWaiter[order.id] || ''}
+                        onChange={(e) => setSelectedWaiter(prev => ({
+                          ...prev,
+                          [order.id]: e.target.value
+                        }))}
+                        className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm"
+                        disabled={loadingWaiters}
+                      >
+                        <option value="">
+                          {loadingWaiters ? 'Cargando meseros...' : 'Seleccionar mesero...'}
+                        </option>
+                        {waiters
+                          .filter(waiter => waiter.active)
+                          .map(waiter => (
+                            <option key={waiter.username} value={waiter.username}>
+                              {waiter.username} ({waiter.activeOrdersCount} órdenes activas)
+                            </option>
+                          ))}
+                      </select>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleAssignWaiter(order.id)}
+                        disabled={assigning === order.id || !selectedWaiter[order.id]}
+                        isLoading={assigning === order.id}
+                        leftIcon={<UserPlus className="w-4 h-4" />}
+                      >
+                        Asignar
+                      </Button>
+                    </div>
+                    {waiters.filter(w => w.active).length === 0 && !loadingWaiters && (
+                      <p className="text-amber-400 text-xs mt-2">
+                        ⚠️ No hay meseros activos registrados
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

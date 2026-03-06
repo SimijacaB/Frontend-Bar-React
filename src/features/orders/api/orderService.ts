@@ -6,6 +6,7 @@ import type {
   CreateOrderDto,
   UpdateOrderDto,
   CreateOrderItemDto,
+  PagedResponse,
 } from '../../../types'
 import type { OrderStatus } from '../../../types'
 
@@ -138,16 +139,37 @@ export const orderService = {
   async getByDateRange(startDate: string | null, endDate?: string | null): Promise<OrderDto[]> {
     // Si no hay fecha de inicio, devolver todas las órdenes
     if (!startDate) {
-      const response = await apiClient.get(API_ENDPOINTS.ORDERS.ALL)
-      return response.data
+      const response = await apiClient.get(API_ENDPOINTS.ORDERS.ALL, { params: { page: 0, size: 1000 } })
+      return response.data.content ?? response.data
     }
-    
+
     // Usar el endpoint de rango de fechas con query params
     const response = await apiClient.get(API_ENDPOINTS.ORDERS.BY_DATE_RANGE, {
       params: {
         startDate,
-        endDate: endDate || startDate
+        endDate: endDate || startDate,
+        page: 0,
+        size: 1000,
       }
+    })
+    return response.data.content ?? response.data
+  },
+
+  /**
+   * Obtiene órdenes paginadas por rango de fechas.
+   */
+  async getByDateRangePaged(
+    startDate: string | null,
+    endDate?: string | null,
+    page = 0,
+    size = 30
+  ): Promise<PagedResponse<OrderDto>> {
+    if (!startDate) {
+      const response = await apiClient.get(API_ENDPOINTS.ORDERS.ALL, { params: { page, size } })
+      return response.data
+    }
+    const response = await apiClient.get(API_ENDPOINTS.ORDERS.BY_DATE_RANGE, {
+      params: { startDate, endDate: endDate || startDate, page, size }
     })
     return response.data
   },
@@ -160,16 +182,37 @@ export const orderService = {
   async getMyOrdersByDateRange(startDate: string | null, endDate?: string | null): Promise<OrderDto[]> {
     // Si no hay fecha de inicio, devolver todas mis órdenes
     if (!startDate) {
-      const response = await apiClient.get(API_ENDPOINTS.ORDERS.MY_ORDERS)
-      return response.data
+      const response = await apiClient.get(API_ENDPOINTS.ORDERS.MY_ORDERS, { params: { page: 0, size: 1000 } })
+      return response.data.content ?? response.data
     }
-    
+
     // Usar el endpoint de mis órdenes con rango de fechas
     const response = await apiClient.get(API_ENDPOINTS.ORDERS.MY_ORDERS_DATE_RANGE, {
       params: {
         startDate,
-        endDate: endDate || startDate
+        endDate: endDate || startDate,
+        page: 0,
+        size: 1000,
       }
+    })
+    return response.data.content ?? response.data
+  },
+
+  /**
+   * Obtiene órdenes del mesero autenticado paginadas por rango de fechas.
+   */
+  async getMyOrdersByDateRangePaged(
+    startDate: string | null,
+    endDate?: string | null,
+    page = 0,
+    size = 30
+  ): Promise<PagedResponse<OrderDto>> {
+    if (!startDate) {
+      const response = await apiClient.get(API_ENDPOINTS.ORDERS.MY_ORDERS, { params: { page, size } })
+      return response.data
+    }
+    const response = await apiClient.get(API_ENDPOINTS.ORDERS.MY_ORDERS_DATE_RANGE, {
+      params: { startDate, endDate: endDate || startDate, page, size }
     })
     return response.data
   },

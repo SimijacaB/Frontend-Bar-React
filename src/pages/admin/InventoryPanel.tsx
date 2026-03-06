@@ -14,7 +14,7 @@ import {
   AlertTriangle,
   Boxes
 } from 'lucide-react'
-import { Card, CardContent, Badge, LoadingState } from '../../components/ui'
+import { Card, CardContent, Badge, LoadingState, Pagination } from '../../components/ui'
 import Button from '../../components/ui/Button'
 import CodeInput from '../../components/ui/CodeInput'
 import { ingredientService } from '../../features/ingredients/api/ingredientService'
@@ -71,70 +71,6 @@ const generateQuantityOptions = () => {
 const QUANTITY_OPTIONS = generateQuantityOptions()
 
 const ITEMS_PER_PAGE = 12
-
-// ========================
-// PAGINATION BAR
-// ========================
-interface PaginationBarProps {
-  page: number
-  totalPages: number
-  total: number
-  label: string
-  onPageChange: (p: number) => void
-}
-
-const PaginationBar: FC<PaginationBarProps> = ({ page, totalPages, total, label, onPageChange }) => {
-  if (totalPages <= 1) return null
-  const start = (page - 1) * ITEMS_PER_PAGE + 1
-  const end = Math.min(page * ITEMS_PER_PAGE, total)
-  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1)
-    .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-    .reduce<(number | '...')[]>((acc, p, idx, arr) => {
-      if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...')
-      acc.push(p)
-      return acc
-    }, [])
-  return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-slate-800">
-      <p className="text-slate-400 text-sm">
-        Mostrando {start}–{end} de {total} {label}
-      </p>
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => onPageChange(Math.max(1, page - 1))}
-          disabled={page === 1}
-          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          Anterior
-        </button>
-        {pageNumbers.map((p, idx) =>
-          p === '...' ? (
-            <span key={`e-${idx}`} className="text-slate-500 px-1 text-sm">…</span>
-          ) : (
-            <button
-              key={p}
-              onClick={() => onPageChange(p as number)}
-              className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${
-                page === p
-                  ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30'
-                  : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
-              }`}
-            >
-              {p}
-            </button>
-          )
-        )}
-        <button
-          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
-          disabled={page === totalPages}
-          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          Siguiente
-        </button>
-      </div>
-    </div>
-  )
-}
 
 // ========================
 // INGREDIENTS TAB
@@ -345,10 +281,11 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
             </table>
           </div>
           <div className="px-4 pb-4">
-            <PaginationBar
+            <Pagination
               page={page}
               totalPages={totalIngredientPages}
               total={filteredIngredients.length}
+              itemsPerPage={ITEMS_PER_PAGE}
               label="ingredientes"
               onPageChange={setPage}
             />
@@ -711,10 +648,11 @@ const ProductsTab: FC<ProductsTabProps> = ({
             </table>
           </div>
           <div className="px-4 pb-4">
-            <PaginationBar
+            <Pagination
               page={page}
               totalPages={totalProductPages}
               total={filteredProducts.length}
+              itemsPerPage={ITEMS_PER_PAGE}
               label="productos"
               onPageChange={setPage}
             />
@@ -1221,10 +1159,11 @@ const StockTab: FC<StockTabProps> = ({
             </table>
           </div>
           <div className="px-4 pb-4">
-            <PaginationBar
+            <Pagination
               page={page}
               totalPages={totalStockPages}
               total={filteredByView.length}
+              itemsPerPage={ITEMS_PER_PAGE}
               label={stockView === 'ingredients' ? 'ingredientes' : 'productos'}
               onPageChange={setPage}
             />

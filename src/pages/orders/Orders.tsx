@@ -1,4 +1,4 @@
-import { useState, useEffect, type FC } from 'react'
+import { useState, useEffect, useCallback, type FC } from 'react'
 import {
   Users,
   Clock,
@@ -15,7 +15,7 @@ import {
   Download,
   Link2
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, Badge, OrderStatusBadge, LoadingState } from '../../components/ui'
+import { Card, CardContent, CardHeader, CardTitle, Badge, OrderStatusBadge, LoadingState, Pagination } from '../../components/ui'
 import Button from '../../components/ui/Button'
 import { orderService } from '../../features/orders/api/orderService'
 import { useAuth } from '../../features/auth/context/AuthContext'
@@ -61,12 +61,18 @@ const OrdersPage: FC = () => {
   const [pendingBillType, setPendingBillType] = useState<'single' | 'unified'>('single')
   const [pendingUnifyTableNumber, setPendingUnifyTableNumber] = useState<number | null>(null)
   const [pendingUnifyOrderIds, setPendingUnifyOrderIds] = useState<number[]>([])
-  // Bills history filters & pagination
+  // Bills history filters & pagination (server-side)
   const [billsClientFilter, setBillsClientFilter] = useState('')
   const [billsDateFrom, setBillsDateFrom] = useState('')
   const [billsDateTo, setBillsDateTo] = useState('')
   const [billsPage, setBillsPage] = useState(1)
-  const BILLS_PER_PAGE = 8
+  const [billsTotalPages, setBillsTotalPages] = useState(0)
+  const [billsTotalElements, setBillsTotalElements] = useState(0)
+  const BILLS_PER_PAGE = 10
+  // PDF preview modal
+  const [pdfPreviewBillId, setPdfPreviewBillId] = useState<number | null>(null)
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null)
+  const [isLoadingPdfPreview, setIsLoadingPdfPreview] = useState(false)
 
   // Check if user is admin/staff (not a regular customer)
   const isStaff = user?.roles?.some(role => ['ADMIN', 'WAITER', 'BARTENDER', 'CHEF'].includes(role)) ?? false
@@ -82,6 +88,10 @@ const OrdersPage: FC = () => {
     setSpecificDate,
     refresh: fetchOrders,
     isWaiter,
+    currentPage: ordersPage,
+    totalPages: ordersTotalPages,
+    totalElements: ordersTotalElements,
+    setPage: setOrdersPage,
   } = useOrdersFilter({
     userRole: user?.roles || [],
     autoFetch: true,
@@ -119,32 +129,46 @@ const OrdersPage: FC = () => {
     }
   }
 
-  // Función para cargar facturas
-  const loadBills = async () => {
+  // Función para cargar facturas (server-side paginated)
+  const loadBills = useCallback(async () => {
     try {
       setLoadingBills(true)
-      const data = await billService.getAll()
-      setBills(Array.isArray(data) ? data : [])
+      const result = await billService.getPaged({
+        page: billsPage - 1,
+        size: BILLS_PER_PAGE,
+        clientName: billsClientFilter || undefined,
+        startDate: billsDateFrom || undefined,
+        endDate: billsDateTo || undefined,
+      })
+      setBills(result.content)
+      setBillsTotalPages(result.totalPages)
+      setBillsTotalElements(result.totalElements)
     } catch (err) {
       console.error('Error loading bills:', err)
       toast.error('Error al cargar facturas')
     } finally {
       setLoadingBills(false)
     }
-  }
+  }, [billsPage, billsClientFilter, billsDateFrom, billsDateTo])
 
   // Cargar mesas al inicio
   useEffect(() => {
     loadTables()
   }, [])
 
-  // Cargar facturas y refrescar órdenes cuando se cambia a la pestaña de facturación
+  // Cargar órdenes cuando se activa la pestaña de facturación
   useEffect(() => {
     if (activeTab === 'billing' && userIsAdmin) {
-      loadBills()
       fetchOrders()
     }
   }, [activeTab, userIsAdmin])
+
+  // Cargar facturas cuando cambian filtros, página o sub-pestaña
+  useEffect(() => {
+    if (activeTab === 'billing' && billingSubTab === 'history' && userIsAdmin) {
+      loadBills()
+    }
+  }, [loadBills, activeTab, billingSubTab, userIsAdmin])
   
   // Get table number from user if they're a customer (would come from localStorage or context)
   const customerTableNumber = !isStaff ? selectedTable : null
@@ -221,16 +245,39 @@ const OrdersPage: FC = () => {
     }
   }
 
-  // Download bill PDF
-  const handleDownloadBill = async (billId: number) => {
+  // Open PDF preview modal
+  const handlePreviewPdf = async (billId: number) => {
+    setPdfPreviewBillId(billId)
+    setPdfPreviewUrl(null)
+    setIsLoadingPdfPreview(true)
     try {
-      await billService.downloadAndSavePdf(billId)
-      toast.success('Factura descargada')
+      const blob = await billService.downloadPdf(billId)
+      const url = URL.createObjectURL(blob)
+      setPdfPreviewUrl(url)
     } catch (err: any) {
-      console.error('Error downloading bill:', err)
-      const errorMessage = err?.response?.data?.message || err?.message || 'Error al descargar factura'
-      toast.error(errorMessage)
+      toast.error('Error al cargar la previsualización')
+      setPdfPreviewBillId(null)
+    } finally {
+      setIsLoadingPdfPreview(false)
     }
+  }
+
+  // Close PDF preview and revoke object URL
+  const handleClosePdfPreview = () => {
+    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl)
+    setPdfPreviewUrl(null)
+    setPdfPreviewBillId(null)
+  }
+
+  // Download directly from the already-loaded preview blob
+  const handleDownloadFromPreview = () => {
+    if (!pdfPreviewUrl || !pdfPreviewBillId) return
+    const link = document.createElement('a')
+    link.href = pdfPreviewUrl
+    link.download = `factura_${pdfPreviewBillId}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   // Generate bill for all orders of a table
@@ -366,21 +413,6 @@ const OrdersPage: FC = () => {
       return dateStr
     }
   }
-
-  // Filtered & paginated bills for history tab
-  const filteredBills = bills.filter(bill => {
-    const matchesClient = !billsClientFilter ||
-      bill.clientName.toLowerCase().includes(billsClientFilter.toLowerCase())
-    const billDate = parseBillingDate(bill.billingDate)
-    const matchesFrom = !billsDateFrom || billDate >= new Date(billsDateFrom)
-    const matchesTo = !billsDateTo || billDate <= new Date(billsDateTo + 'T23:59:59')
-    return matchesClient && matchesFrom && matchesTo
-  })
-  const totalBillPages = Math.ceil(filteredBills.length / BILLS_PER_PAGE)
-  const paginatedBills = filteredBills.slice(
-    (billsPage - 1) * BILLS_PER_PAGE,
-    billsPage * BILLS_PER_PAGE
-  )
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -768,6 +800,19 @@ const OrdersPage: FC = () => {
                       ))}
                     </div>
                   )}
+                  {/* Orders pagination */}
+                  {ordersTotalPages > 1 && (
+                    <div className="mt-6">
+                      <Pagination
+                        page={ordersPage}
+                        totalPages={ordersTotalPages}
+                        total={ordersTotalElements}
+                        itemsPerPage={30}
+                        label="órdenes"
+                        onPageChange={setOrdersPage}
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -798,7 +843,7 @@ const OrdersPage: FC = () => {
                   )}
                 </button>
                 <button
-                  onClick={() => { setBillingSubTab('history'); loadBills() }}
+                  onClick={() => setBillingSubTab('history')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     billingSubTab === 'history'
                       ? 'bg-emerald-500 text-white shadow'
@@ -934,9 +979,9 @@ const OrdersPage: FC = () => {
                       <CardTitle className="flex items-center gap-2">
                         <Receipt className="w-5 h-5 text-emerald-400" />
                         Historial de Facturas
-                        {filteredBills.length > 0 && (
+                        {billsTotalElements > 0 && (
                           <span className="text-slate-400 text-sm font-normal ml-1">
-                            ({filteredBills.length} {filteredBills.length === 1 ? 'factura' : 'facturas'})
+                            ({billsTotalElements} {billsTotalElements === 1 ? 'factura' : 'facturas'})
                           </span>
                         )}
                       </CardTitle>
@@ -944,7 +989,7 @@ const OrdersPage: FC = () => {
                         size="sm"
                         variant="secondary"
                         leftIcon={<RefreshCw className={`w-4 h-4 ${loadingBills ? 'animate-spin' : ''}`} />}
-                        onClick={() => { loadBills(); setBillsPage(1) }}
+                        onClick={loadBills}
                         disabled={loadingBills}
                       >
                         Actualizar
@@ -987,17 +1032,17 @@ const OrdersPage: FC = () => {
                       <div className="text-center py-8">
                         <LoadingState message="Cargando facturas..." />
                       </div>
-                    ) : filteredBills.length === 0 ? (
+                    ) : bills.length === 0 ? (
                       <div className="text-center py-8">
                         <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
                         <p className="text-slate-400">
-                          {bills.length === 0 ? 'No hay facturas generadas' : 'No hay facturas que coincidan con los filtros'}
+                          {!billsClientFilter && !billsDateFrom && !billsDateTo ? 'No hay facturas generadas' : 'No hay facturas que coincidan con los filtros'}
                         </p>
                       </div>
                     ) : (
                       <>
                         <div className="space-y-3">
-                          {paginatedBills.map((bill) => (
+                          {bills.map((bill) => (
                             <div
                               key={bill.id}
                               className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-emerald-500/30 transition-colors"
@@ -1031,11 +1076,10 @@ const OrdersPage: FC = () => {
                                   <Button
                                     size="sm"
                                     variant="primary"
-                                    onClick={() => handleDownloadBill(bill.id)}
-                                    className="flex items-center gap-2"
+                                    onClick={() => handlePreviewPdf(bill.id)}
                                   >
-                                    <Download className="w-4 h-4" />
-                                    Descargar PDF
+                                    <Eye className="w-4 h-4 mr-1.5" />
+                                    Ver Factura
                                   </Button>
                                 </div>
                               </div>
@@ -1044,54 +1088,15 @@ const OrdersPage: FC = () => {
                         </div>
 
                         {/* Pagination */}
-                        {totalBillPages > 1 && (
-                          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700/50">
-                            <p className="text-slate-400 text-sm">
-                              Página {billsPage} de {totalBillPages} · {filteredBills.length} facturas
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => setBillsPage(p => Math.max(1, p - 1))}
-                                disabled={billsPage === 1}
-                              >
-                                Anterior
-                              </Button>
-                              {Array.from({ length: totalBillPages }, (_, i) => i + 1)
-                                .filter(p => p === 1 || p === totalBillPages || Math.abs(p - billsPage) <= 1)
-                                .reduce<(number | '...')[]>((acc, p, idx, arr) => {
-                                  if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...')
-                                  acc.push(p)
-                                  return acc
-                                }, [])
-                                .map((p, idx) =>
-                                  p === '...' ? (
-                                    <span key={`ellipsis-${idx}`} className="text-slate-500 px-1">…</span>
-                                  ) : (
-                                    <button
-                                      key={p}
-                                      onClick={() => setBillsPage(p as number)}
-                                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${
-                                        billsPage === p
-                                          ? 'bg-emerald-500 text-white'
-                                          : 'bg-slate-700 text-slate-400 hover:text-white'
-                                      }`}
-                                    >
-                                      {p}
-                                    </button>
-                                  )
-                                )}
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => setBillsPage(p => Math.min(totalBillPages, p + 1))}
-                                disabled={billsPage === totalBillPages}
-                              >
-                                Siguiente
-                              </Button>
-                            </div>
-                          </div>
+                        {billsTotalPages > 1 && (
+                          <Pagination
+                            page={billsPage}
+                            totalPages={billsTotalPages}
+                            total={billsTotalElements}
+                            itemsPerPage={BILLS_PER_PAGE}
+                            label="facturas"
+                            onPageChange={setBillsPage}
+                          />
                         )}
                       </>
                     )}
@@ -1511,6 +1516,62 @@ const OrdersPage: FC = () => {
           fetchOrders()
         }}
       />
+
+      {/* PDF Bill Preview Modal */}
+      {pdfPreviewBillId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 rounded-2xl w-full max-w-4xl border border-slate-700 flex flex-col" style={{ height: '90vh' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <Receipt className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold">Factura #{pdfPreviewBillId}</h3>
+                  <p className="text-slate-400 text-xs">Previsualización del documento</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Download className="w-4 h-4" />}
+                  onClick={handleDownloadFromPreview}
+                  disabled={!pdfPreviewUrl}
+                >
+                  Descargar PDF
+                </Button>
+                <button
+                  onClick={handleClosePdfPreview}
+                  className="p-2 hover:bg-slate-800 rounded-lg transition-colors ml-1"
+                  aria-label="Cerrar"
+                >
+                  <Plus className="w-5 h-5 text-slate-400 rotate-45" />
+                </button>
+              </div>
+            </div>
+            {/* Body */}
+            <div className="flex-1 overflow-hidden p-4">
+              {isLoadingPdfPreview ? (
+                <div className="flex items-center justify-center h-full">
+                  <LoadingState message="Cargando factura..." />
+                </div>
+              ) : pdfPreviewUrl ? (
+                <iframe
+                  src={pdfPreviewUrl}
+                  className="w-full h-full rounded-xl border border-slate-700/50"
+                  title={`Factura ${pdfPreviewBillId}`}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-slate-400">No se pudo cargar la previsualización</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

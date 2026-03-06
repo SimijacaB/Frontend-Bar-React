@@ -15,10 +15,12 @@ export interface UseOrdersFilterOptions {
   autoFetch?: boolean
   /** Intervalo de actualización automática en ms (0 para desactivar) */
   refreshInterval?: number
+  /** Tamaño de página (por defecto 30) */
+  pageSize?: number
 }
 
 export interface UseOrdersFilterReturn {
-  /** Lista de órdenes filtradas */
+  /** Lista de órdenes filtradas (página actual) */
   orders: OrderDto[]
   /** Estado de carga */
   isLoading: boolean
@@ -36,29 +38,39 @@ export interface UseOrdersFilterReturn {
   isAdmin: boolean
   /** Indica si el usuario es mesero */
   isWaiter: boolean
+  /** Página actual (1-indexed para la UI) */
+  currentPage: number
+  /** Total de páginas */
+  totalPages: number
+  /** Total de elementos */
+  totalElements: number
+  /** Cambia la página actual */
+  setPage: (page: number) => void
+  /** Tamaño de página */
+  pageSize: number
 }
 
 /**
  * Hook personalizado para gestionar el filtrado de órdenes según el rol del usuario
- * 
+ *
  * Comportamiento:
  * - ADMIN: Ve todas las órdenes del día actual al iniciar, puede filtrar por fecha
  * - WAITER: Ve solo sus propias órdenes del día actual al iniciar
  */
 export const useOrdersFilter = (options: UseOrdersFilterOptions): UseOrdersFilterReturn => {
-  const { userRole, autoFetch = true, refreshInterval = 0 } = options
+  const { userRole, autoFetch = true, refreshInterval = 0, pageSize = 30 } = options
 
   // Determinar el rol del usuario
   const roles = useMemo(() => {
     return Array.isArray(userRole) ? userRole : [userRole]
   }, [userRole])
 
-  const isAdmin = useMemo(() => 
+  const isAdmin = useMemo(() =>
     roles.some(role => role === UserRole.ADMIN || role === 'ADMIN'),
     [roles]
   )
 
-  const isWaiter = useMemo(() => 
+  const isWaiter = useMemo(() =>
     roles.some(role => role === UserRole.WAITER || role === 'WAITER'),
     [roles]
   )
@@ -72,8 +84,13 @@ export const useOrdersFilter = (options: UseOrdersFilterOptions): UseOrdersFilte
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Estado de paginación (0-indexed internamente, 1-indexed en la UI)
+  const [currentPageIndex, setCurrentPageIndex] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+
   // Calcular el estado del filtro de fecha
-  const dateFilter = useMemo(() => 
+  const dateFilter = useMemo(() =>
     getDateFilterState(filterType, specificDate),
     [filterType, specificDate]
   )
@@ -81,30 +98,27 @@ export const useOrdersFilter = (options: UseOrdersFilterOptions): UseOrdersFilte
   /**
    * Función principal para obtener las órdenes según el rol y filtros
    */
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (pageIndex: number = currentPageIndex) => {
     setIsLoading(true)
     setError(null)
 
     try {
-      let fetchedOrders: OrderDto[]
-      
-      // Determinar si hay filtro de fecha o se quieren todas
       const isAllFilter = filterType === 'all'
       const startDateStr = isAllFilter ? null : formatDateForApi(dateFilter.dateRange.startDate)
       const endDateStr = isAllFilter ? null : formatDateForApi(dateFilter.dateRange.endDate)
 
+      let pagedResult
       if (isAdmin) {
-        // Admin: obtener órdenes (todas o filtradas por fecha)
-        fetchedOrders = await orderService.getByDateRange(startDateStr, endDateStr)
+        pagedResult = await orderService.getByDateRangePaged(startDateStr, endDateStr, pageIndex, pageSize)
       } else if (isWaiter) {
-        // Mesero: obtener solo sus órdenes (todas o filtradas por fecha)
-        fetchedOrders = await orderService.getMyOrdersByDateRange(startDateStr, endDateStr)
+        pagedResult = await orderService.getMyOrdersByDateRangePaged(startDateStr, endDateStr, pageIndex, pageSize)
       } else {
-        // Otro rol: obtener todas (fallback)
-        fetchedOrders = await orderService.getByDateRange(startDateStr, endDateStr)
+        pagedResult = await orderService.getByDateRangePaged(startDateStr, endDateStr, pageIndex, pageSize)
       }
 
-      setOrders(fetchedOrders)
+      setOrders(pagedResult.content)
+      setTotalPages(pagedResult.totalPages)
+      setTotalElements(pagedResult.totalElements)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al cargar las órdenes'
       setError(message)
@@ -112,12 +126,13 @@ export const useOrdersFilter = (options: UseOrdersFilterOptions): UseOrdersFilte
     } finally {
       setIsLoading(false)
     }
-  }, [filterType, dateFilter.dateRange, isAdmin, isWaiter])
+  }, [filterType, dateFilter.dateRange, isAdmin, isWaiter, currentPageIndex, pageSize])
 
   /**
-   * Cambiar el tipo de filtro de fecha
+   * Cambiar el tipo de filtro de fecha (resetea a la primera página)
    */
   const setFilterType = useCallback((type: DateFilterType) => {
+    setCurrentPageIndex(0)
     setFilterTypeState(type)
     if (type !== 'specific') {
       setSpecificDateState(undefined)
@@ -125,24 +140,33 @@ export const useOrdersFilter = (options: UseOrdersFilterOptions): UseOrdersFilte
   }, [])
 
   /**
-   * Establecer una fecha específica
+   * Establecer una fecha específica (resetea a la primera página)
    */
   const setSpecificDate = useCallback((date: Date) => {
+    setCurrentPageIndex(0)
     setFilterTypeState('specific')
     setSpecificDateState(date)
+  }, [])
+
+  /**
+   * Cambiar la página (1-indexed para la UI)
+   */
+  const setPage = useCallback((page: number) => {
+    const newIndex = page - 1
+    setCurrentPageIndex(newIndex)
   }, [])
 
   /**
    * Función de refresco manual
    */
   const refresh = useCallback(async () => {
-    await fetchOrders()
-  }, [fetchOrders])
+    await fetchOrders(currentPageIndex)
+  }, [fetchOrders, currentPageIndex])
 
   // Efecto para cargar órdenes al montar o cuando cambian los filtros
   useEffect(() => {
     if (autoFetch) {
-      fetchOrders()
+      fetchOrders(currentPageIndex)
     }
   }, [autoFetch, fetchOrders])
 
@@ -150,11 +174,11 @@ export const useOrdersFilter = (options: UseOrdersFilterOptions): UseOrdersFilte
   useEffect(() => {
     if (refreshInterval > 0) {
       const interval = setInterval(() => {
-        fetchOrders()
+        fetchOrders(currentPageIndex)
       }, refreshInterval)
       return () => clearInterval(interval)
     }
-  }, [refreshInterval, fetchOrders])
+  }, [refreshInterval, fetchOrders, currentPageIndex])
 
   return {
     orders,
@@ -166,6 +190,11 @@ export const useOrdersFilter = (options: UseOrdersFilterOptions): UseOrdersFilte
     refresh,
     isAdmin,
     isWaiter,
+    currentPage: currentPageIndex + 1,
+    totalPages,
+    totalElements,
+    setPage,
+    pageSize,
   }
 }
 

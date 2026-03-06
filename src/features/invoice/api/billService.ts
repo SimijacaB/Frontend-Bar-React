@@ -1,11 +1,34 @@
 import apiClient from '../../../lib/axios'
 import { API_ENDPOINTS } from '../../../config/api'
-import type { BillDto } from '../../../types'
+import type { BillDto, PagedResponse } from '../../../types'
 
 export const billService = {
-  // Get all bills
+  // Get all bills (legacy - extrae content para compatibilidad)
   async getAll(): Promise<BillDto[]> {
-    const response = await apiClient.get(API_ENDPOINTS.BILLS.ALL)
+    const response = await apiClient.get(API_ENDPOINTS.BILLS.ALL, {
+      params: { page: 0, size: 1000 }
+    })
+    // El backend ahora devuelve Page<BillDTO>, extraemos el content
+    return response.data.content ?? response.data
+  },
+
+  // Get paginated bills with optional filters
+  async getPaged(params?: {
+    page?: number
+    size?: number
+    clientName?: string
+    startDate?: string
+    endDate?: string
+  }): Promise<PagedResponse<BillDto>> {
+    const response = await apiClient.get(API_ENDPOINTS.BILLS.ALL, {
+      params: {
+        page: params?.page ?? 0,
+        size: params?.size ?? 10,
+        ...(params?.clientName ? { clientName: params.clientName } : {}),
+        ...(params?.startDate ? { startDate: params.startDate } : {}),
+        ...(params?.endDate ? { endDate: params.endDate } : {}),
+      }
+    })
     return response.data
   },
 
