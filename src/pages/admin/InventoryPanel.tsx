@@ -70,6 +70,72 @@ const generateQuantityOptions = () => {
 }
 const QUANTITY_OPTIONS = generateQuantityOptions()
 
+const ITEMS_PER_PAGE = 12
+
+// ========================
+// PAGINATION BAR
+// ========================
+interface PaginationBarProps {
+  page: number
+  totalPages: number
+  total: number
+  label: string
+  onPageChange: (p: number) => void
+}
+
+const PaginationBar: FC<PaginationBarProps> = ({ page, totalPages, total, label, onPageChange }) => {
+  if (totalPages <= 1) return null
+  const start = (page - 1) * ITEMS_PER_PAGE + 1
+  const end = Math.min(page * ITEMS_PER_PAGE, total)
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+    .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+      if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...')
+      acc.push(p)
+      return acc
+    }, [])
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-slate-800">
+      <p className="text-slate-400 text-sm">
+        Mostrando {start}–{end} de {total} {label}
+      </p>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Anterior
+        </button>
+        {pageNumbers.map((p, idx) =>
+          p === '...' ? (
+            <span key={`e-${idx}`} className="text-slate-500 px-1 text-sm">…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPageChange(p as number)}
+              className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${
+                page === p
+                  ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30'
+                  : 'bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600'
+              }`}
+            >
+              {p}
+            </button>
+          )
+        )}
+        <button
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          disabled={page === totalPages}
+          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-800 text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ========================
 // INGREDIENTS TAB
 // ========================
@@ -89,6 +155,7 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
   onDelete 
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingIngredient, setEditingIngredient] = useState<IngredientDto | null>(null)
   const [formData, setFormData] = useState<CreateIngredientDto>({
@@ -101,6 +168,8 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
     ing.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     ing.code?.toLowerCase().includes(searchTerm.toLowerCase())
   )
+  const totalIngredientPages = Math.ceil(filteredIngredients.length / ITEMS_PER_PAGE)
+  const paginatedIngredients = filteredIngredients.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
 
   const handleOpenModal = (ingredient?: IngredientDto) => {
     if (ingredient) {
@@ -155,6 +224,13 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
     return acc
   }, {} as Record<string, number>)
 
+  const unitStatConfig: Record<string, { bg: string; num: string }> = {
+    ML:  { bg: 'bg-blue-500/20',   num: 'text-blue-400' },
+    ONZ: { bg: 'bg-amber-500/20',  num: 'text-amber-400' },
+    GR:  { bg: 'bg-orange-500/20', num: 'text-orange-400' },
+    UN:  { bg: 'bg-emerald-500/20',num: 'text-emerald-400' },
+  }
+
   if (isLoading) {
     return <LoadingState message="Cargando ingredientes..." />
   }
@@ -163,27 +239,42 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {Object.entries(unitOfMeasureLabels).map(([key, label]) => (
-          <Card key={key} className="bg-slate-800/50 border-slate-700">
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-white">{statsByUnit[key] || 0}</div>
-              <div className="text-sm text-slate-400">{label}</div>
-            </CardContent>
-          </Card>
-        ))}
+        {Object.entries(unitOfMeasureLabels).map(([key, label]) => {
+          const cfg = unitStatConfig[key] || { bg: 'bg-slate-700', num: 'text-white' }
+          return (
+            <Card key={key} className="bg-slate-800/50 border-slate-700">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}>
+                  <Beaker className={`w-5 h-5 ${cfg.num}`} />
+                </div>
+                <div>
+                  <div className={`text-2xl font-bold ${cfg.num}`}>{statsByUnit[key] || 0}</div>
+                  <div className="text-xs text-slate-400 leading-tight">{label}</div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar ingredientes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-          />
+        <div className="flex items-center gap-3 flex-1">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar ingredientes..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }}
+              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+          {filteredIngredients.length > 0 && (
+            <span className="text-slate-400 text-sm whitespace-nowrap">
+              {filteredIngredients.length} resultado{filteredIngredients.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onRefresh}>
@@ -211,14 +302,15 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {filteredIngredients.length === 0 ? (
+              {filteredIngredients.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center p-8 text-slate-400">
+                    <td colSpan={4} className="text-center p-10 text-slate-400">
+                      <Package className="w-10 h-10 mx-auto mb-3 text-slate-700" />
                       No se encontraron ingredientes
                     </td>
                   </tr>
                 ) : (
-                  filteredIngredients.map((ingredient) => (
+                  paginatedIngredients.map((ingredient) => (
                     <tr key={ingredient.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                       <td className="p-4">
                         <code className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded text-sm">
@@ -251,6 +343,15 @@ const IngredientsTab: FC<IngredientsTabProps> = ({
 
               </tbody>
             </table>
+          </div>
+          <div className="px-4 pb-4">
+            <PaginationBar
+              page={page}
+              totalPages={totalIngredientPages}
+              total={filteredIngredients.length}
+              label="ingredientes"
+              onPageChange={setPage}
+            />
           </div>
         </CardContent>
       </Card>
@@ -343,6 +444,7 @@ const ProductsTab: FC<ProductsTabProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [page, setPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ProductResponseDto | null>(null)
   const [formData, setFormData] = useState<ProductRequestDto>({
@@ -364,6 +466,8 @@ const ProductsTab: FC<ProductsTabProps> = ({
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter
     return matchesSearch && matchesCategory
   })
+  const totalProductPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE)
+  const paginatedProducts = filteredProducts.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
 
   const handleOpenModal = (product?: ProductResponseDto) => {
     if (product) {
@@ -479,7 +583,7 @@ const ProductsTab: FC<ProductsTabProps> = ({
       {/* Category Filter */}
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setCategoryFilter('all')}
+          onClick={() => { setCategoryFilter('all'); setPage(1) }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             categoryFilter === 'all'
               ? 'bg-emerald-500 text-white'
@@ -493,7 +597,7 @@ const ProductsTab: FC<ProductsTabProps> = ({
           return (
             <button
               key={key}
-              onClick={() => setCategoryFilter(key)}
+              onClick={() => { setCategoryFilter(key); setPage(1) }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 categoryFilter === key
                   ? 'bg-emerald-500 text-white'
@@ -508,15 +612,22 @@ const ProductsTab: FC<ProductsTabProps> = ({
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar productos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-          />
+        <div className="flex items-center gap-3 flex-1">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar productos..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }}
+              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+          {filteredProducts.length > 0 && (
+            <span className="text-slate-400 text-sm whitespace-nowrap">
+              {filteredProducts.length} resultado{filteredProducts.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onRefresh}>
@@ -548,12 +659,13 @@ const ProductsTab: FC<ProductsTabProps> = ({
               <tbody>
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center p-8 text-slate-400">
+                    <td colSpan={6} className="text-center p-10 text-slate-400">
+                      <Package className="w-10 h-10 mx-auto mb-3 text-slate-700" />
                       No se encontraron productos
                     </td>
                   </tr>
                 ) : (
-                  filteredProducts.map((product) => (
+                  paginatedProducts.map((product) => (
                     <tr key={product.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                       <td className="p-4">
                         <code className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded text-sm">
@@ -597,6 +709,15 @@ const ProductsTab: FC<ProductsTabProps> = ({
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="px-4 pb-4">
+            <PaginationBar
+              page={page}
+              totalPages={totalProductPages}
+              total={filteredProducts.length}
+              label="productos"
+              onPageChange={setPage}
+            />
           </div>
         </CardContent>
       </Card>
@@ -825,6 +946,7 @@ const StockTab: FC<StockTabProps> = ({
 }) => {
   const [stockView, setStockView] = useState<'ingredients' | 'products'>('ingredients')
   const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'add' | 'deduct' | 'create'>('add')
   const [selectedItem, setSelectedItem] = useState<InventoryResponseDto | null>(null)
@@ -844,6 +966,8 @@ const StockTab: FC<StockTabProps> = ({
   const filteredByView = filteredStock.filter(item =>
     stockView === 'ingredients' ? isIngredientCode(item.code) : isProductCode(item.code)
   )
+  const totalStockPages = Math.ceil(filteredByView.length / ITEMS_PER_PAGE)
+  const paginatedByView = filteredByView.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
 
   // Get ingredients that don't have stock yet
   const ingredientsWithoutStock = (ingredients || []).filter(
@@ -910,7 +1034,7 @@ const StockTab: FC<StockTabProps> = ({
       {/* Subviews: Ingredientes / Productos */}
       <div className="flex gap-2">
         <button
-          onClick={() => setStockView('ingredients')}
+          onClick={() => { setStockView('ingredients'); setPage(1) }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             stockView === 'ingredients' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
           }`}
@@ -918,7 +1042,7 @@ const StockTab: FC<StockTabProps> = ({
           Ingredientes ({ingredientsWithoutStock.length + (stock || []).filter(s => isIngredientCode(s.code)).length})
         </button>
         <button
-          onClick={() => setStockView('products')}
+          onClick={() => { setStockView('products'); setPage(1) }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             stockView === 'products' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
           }`}
@@ -984,15 +1108,22 @@ const StockTab: FC<StockTabProps> = ({
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre o código..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-          />
+        <div className="flex items-center gap-3 flex-1">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre o código..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }}
+              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+          {filteredByView.length > 0 && (
+            <span className="text-slate-400 text-sm whitespace-nowrap">
+              {filteredByView.length} resultado{filteredByView.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onRefresh}>
@@ -1026,12 +1157,13 @@ const StockTab: FC<StockTabProps> = ({
               <tbody>
                 {filteredByView.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center p-8 text-slate-400">
+                    <td colSpan={6} className="text-center p-10 text-slate-400">
+                      <Boxes className="w-10 h-10 mx-auto mb-3 text-slate-700" />
                       No se encontraron items en el inventario para esta vista
                     </td>
                   </tr>
                 ) : (
-                  filteredByView.map((item) => {
+                  paginatedByView.map((item) => {
                     const matchedIngredient = ingredients.find(i => i.code === item.code)
                     const unitLabel = matchedIngredient
                       ? unitOfMeasureLabels[matchedIngredient.unitOfMeasure]
@@ -1087,6 +1219,15 @@ const StockTab: FC<StockTabProps> = ({
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="px-4 pb-4">
+            <PaginationBar
+              page={page}
+              totalPages={totalStockPages}
+              total={filteredByView.length}
+              label={stockView === 'ingredients' ? 'ingredientes' : 'productos'}
+              onPageChange={setPage}
+            />
           </div>
         </CardContent>
       </Card>
@@ -1363,14 +1504,38 @@ const InventoryPanel: FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950">
+      {/* Header */}
+      <section className="bg-gradient-to-b from-slate-900 to-slate-950 py-8 border-b border-slate-800">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">Gestión de Inventario</h1>
+              <p className="text-slate-400">Administra ingredientes, productos y stock del bar</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-slate-800/60 rounded-xl p-3">
+                <div className="text-center">
+                  <p className="text-xl font-bold text-emerald-400">{ingredients.length}</p>
+                  <p className="text-xs text-slate-400">Ingredientes</p>
+                </div>
+                <div className="w-px h-8 bg-slate-700" />
+                <div className="text-center">
+                  <p className="text-xl font-bold text-amber-400">{products.length}</p>
+                  <p className="text-xs text-slate-400">Productos</p>
+                </div>
+                <div className="w-px h-8 bg-slate-700" />
+                <div className="text-center">
+                  <p className="text-xl font-bold text-blue-400">{stock.length}</p>
+                  <p className="text-xs text-slate-400">En Stock</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Gestión de Inventario</h1>
-            <p className="text-slate-400">Administra ingredientes, productos y stock del bar</p>
-          </div>
-
           {/* Tabs */}
           <div className="flex flex-wrap gap-2 mb-6 border-b border-slate-800 pb-4">
             <button
@@ -1383,8 +1548,8 @@ const InventoryPanel: FC = () => {
             >
               <Beaker className="w-5 h-5" />
               Ingredientes
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                activeTab === 'ingredients' ? 'bg-white/20' : 'bg-slate-700'
+              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'ingredients' ? 'bg-white/20' : 'bg-slate-700 text-slate-300'
               }`}>
                 {ingredients.length}
               </span>
@@ -1393,14 +1558,14 @@ const InventoryPanel: FC = () => {
               onClick={() => setActiveTab('products')}
               className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'products'
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                  ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/25'
                   : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
               }`}
             >
               <Package className="w-5 h-5" />
               Productos
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                activeTab === 'products' ? 'bg-white/20' : 'bg-slate-700'
+              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'products' ? 'bg-white/20' : 'bg-slate-700 text-slate-300'
               }`}>
                 {products.length}
               </span>
@@ -1409,14 +1574,14 @@ const InventoryPanel: FC = () => {
               onClick={() => setActiveTab('stock')}
               className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'stock'
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25'
+                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25'
                   : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
               }`}
             >
               <Boxes className="w-5 h-5" />
               Stock
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                activeTab === 'stock' ? 'bg-white/20' : 'bg-slate-700'
+              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'stock' ? 'bg-white/20' : 'bg-slate-700 text-slate-300'
               }`}>
                 {stock.length}
               </span>

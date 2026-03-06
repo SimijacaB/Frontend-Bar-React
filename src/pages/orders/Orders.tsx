@@ -1,9 +1,9 @@
 import { useState, useEffect, type FC } from 'react'
-import { 
-  Users, 
-  Clock, 
-  ChefHat, 
-  DollarSign, 
+import {
+  Users,
+  Clock,
+  ChefHat,
+  DollarSign,
   Eye,
   Plus,
   RefreshCw,
@@ -12,7 +12,8 @@ import {
   TrendingUp,
   AlertCircle,
   UserPlus,
-  Download
+  Download,
+  Link2
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, OrderStatusBadge, LoadingState } from '../../components/ui'
 import Button from '../../components/ui/Button'
@@ -50,6 +51,22 @@ const OrdersPage: FC = () => {
   const [loadingTables, setLoadingTables] = useState(true)
   const [bills, setBills] = useState<BillDto[]>([])
   const [loadingBills, setLoadingBills] = useState(false)
+
+  // Billing sub-tab
+  const [billingSubTab, setBillingSubTab] = useState<'pending' | 'history'>('pending')
+  // Bill preview/confirmation modal
+  const [billPreviewItems, setBillPreviewItems] = useState<OrderDetailDto[]>([])
+  const [isBillPreviewOpen, setIsBillPreviewOpen] = useState(false)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [pendingBillType, setPendingBillType] = useState<'single' | 'unified'>('single')
+  const [pendingUnifyTableNumber, setPendingUnifyTableNumber] = useState<number | null>(null)
+  const [pendingUnifyOrderIds, setPendingUnifyOrderIds] = useState<number[]>([])
+  // Bills history filters & pagination
+  const [billsClientFilter, setBillsClientFilter] = useState('')
+  const [billsDateFrom, setBillsDateFrom] = useState('')
+  const [billsDateTo, setBillsDateTo] = useState('')
+  const [billsPage, setBillsPage] = useState(1)
+  const BILLS_PER_PAGE = 8
 
   // Check if user is admin/staff (not a regular customer)
   const isStaff = user?.roles?.some(role => ['ADMIN', 'WAITER', 'BARTENDER', 'CHEF'].includes(role)) ?? false
@@ -155,6 +172,16 @@ const OrdersPage: FC = () => {
     ready: orders.filter(o => o.status === OrderStatus.READY).length,
   }
 
+  // Group delivered orders by table for unified billing
+  const deliveredOrdersByTable = orders
+    .filter(o => o.status === OrderStatus.DELIVERED || o.status === 'DELIVERED')
+    .reduce<Record<number, OrderDto[]>>((acc, order) => {
+      const tableNum = order.tableNumber ?? 0
+      if (!acc[tableNum]) acc[tableNum] = []
+      acc[tableNum].push(order)
+      return acc
+    }, {})
+
   // Change order status
   const handleStatusChange = async (orderId: number, newStatus: OrderStatus) => {
     try {
@@ -223,6 +250,66 @@ const OrdersPage: FC = () => {
     }
   }
 
+  // Unify all delivered orders of a table into a single bill
+  const handleUnifyBillByTable = async (tableNumber: number, orderIds: number[]) => {
+    try {
+      await billService.generateBySelection(orderIds)
+      toast.success(`Factura unificada generada para mesa ${tableNumber}`)
+      await fetchOrders()
+      await loadTables()
+      await loadBills()
+    } catch (err: any) {
+      console.error('Error generating unified bill:', err)
+      const errorMessage = err?.response?.data?.message || err?.message || 'Error al unificar factura'
+      toast.error(errorMessage)
+    }
+  }
+
+  // Open preview modal for a single order before billing
+  const handleOpenBillPreview = async (order: OrderDto) => {
+    setIsBillPreviewOpen(true)
+    setIsLoadingPreview(true)
+    setPendingBillType('single')
+    try {
+      const detail = await orderService.getById(order.id)
+      setBillPreviewItems([detail])
+    } catch {
+      setBillPreviewItems([{ ...order, orderItemList: [] }])
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  // Open preview modal for unified billing of a table
+  const handleOpenUnifyPreview = async (tableNumber: number, orderIds: number[]) => {
+    setIsBillPreviewOpen(true)
+    setIsLoadingPreview(true)
+    setPendingBillType('unified')
+    setPendingUnifyTableNumber(tableNumber)
+    setPendingUnifyOrderIds(orderIds)
+    try {
+      const details = await Promise.all(orderIds.map(id => orderService.getById(id)))
+      setBillPreviewItems(details)
+    } catch {
+      setBillPreviewItems([])
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  // Confirm billing after preview
+  const handleConfirmBill = async () => {
+    setIsBillPreviewOpen(false)
+    if (pendingBillType === 'single' && billPreviewItems.length === 1) {
+      await handleGenerateBill(billPreviewItems[0] as OrderDto)
+    } else if (pendingBillType === 'unified' && pendingUnifyTableNumber !== null) {
+      await handleUnifyBillByTable(pendingUnifyTableNumber, pendingUnifyOrderIds)
+    }
+    setBillPreviewItems([])
+    setPendingUnifyTableNumber(null)
+    setPendingUnifyOrderIds([])
+  }
+
   // Open assign waiter modal (Admin only)
   const handleOpenAssignModal = (order: OrderDto) => {
     setOrderToAssign(order)
@@ -260,6 +347,40 @@ const OrdersPage: FC = () => {
       maximumFractionDigits: 0,
     }).format(price)
   }
+
+  // Parse billing date avoiding UTC timezone shifts
+  const parseBillingDate = (dateStr: string): Date => {
+    const [datePart] = dateStr.split('T')
+    const parts = datePart.split('-').map(Number)
+    return new Date(parts[0], parts[1] - 1, parts[2])
+  }
+
+  const formatBillDate = (dateStr: string): string => {
+    try {
+      return parseBillingDate(dateStr).toLocaleDateString('es-CO', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    } catch {
+      return dateStr
+    }
+  }
+
+  // Filtered & paginated bills for history tab
+  const filteredBills = bills.filter(bill => {
+    const matchesClient = !billsClientFilter ||
+      bill.clientName.toLowerCase().includes(billsClientFilter.toLowerCase())
+    const billDate = parseBillingDate(bill.billingDate)
+    const matchesFrom = !billsDateFrom || billDate >= new Date(billsDateFrom)
+    const matchesTo = !billsDateTo || billDate <= new Date(billsDateTo + 'T23:59:59')
+    return matchesClient && matchesFrom && matchesTo
+  })
+  const totalBillPages = Math.ceil(filteredBills.length / BILLS_PER_PAGE)
+  const paginatedBills = filteredBills.slice(
+    (billsPage - 1) * BILLS_PER_PAGE,
+    billsPage * BILLS_PER_PAGE
+  )
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -656,163 +777,327 @@ const OrdersPage: FC = () => {
           {/* Billing Tab Content */}
           {activeTab === 'billing' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Receipt className="w-5 h-5 text-amber-400" />
-                      Facturas Pendientes
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === 'DELIVERED').length === 0 ? (
-                        <div className="text-center py-8">
-                          <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                          <p className="text-slate-400">No hay órdenes entregadas pendientes de facturar</p>
-                        </div>
-                      ) : (
-                        orders.filter(o => o.status === OrderStatus.DELIVERED || o.status === 'DELIVERED').map((order) => (
-                          <div key={order.id} className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-white font-semibold">Mesa {order.tableNumber} - {order.clientName}</p>
-                                <p className="text-slate-400 text-sm">Orden #{order.id}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-xl font-bold text-amber-400">{formatPrice(order.valueToPay || 0)}</p>
-                                <Button 
-                                  size="sm" 
-                                  variant="primary" 
-                                  className="mt-2"
-                                  onClick={() => handleGenerateBill(order)}
-                                >
-                                  Generar Factura
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-emerald-400" />
-                      Resumen del Día
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                        <p className="text-slate-400 text-sm">Total Ventas Hoy</p>
-                        <p className="text-3xl font-bold text-emerald-400">
-                          {formatPrice(orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0))}
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl bg-slate-800/50">
-                          <p className="text-slate-400 text-sm">Órdenes Completadas</p>
-                          <p className="text-2xl font-bold text-white">
-                            {orders.filter(o => o.status === OrderStatus.DELIVERED).length}
-                          </p>
-                        </div>
-                        <div className="p-4 rounded-xl bg-slate-800/50">
-                          <p className="text-slate-400 text-sm">Ticket Promedio</p>
-                          <p className="text-2xl font-bold text-white">
-                            {formatPrice(orders.length > 0 ? orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0) / orders.length : 0)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* Billing Sub-Tabs */}
+              <div className="flex gap-1 bg-slate-800/60 p-1 rounded-xl w-fit">
+                <button
+                  onClick={() => setBillingSubTab('pending')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    billingSubTab === 'pending'
+                      ? 'bg-amber-500 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Receipt className="w-4 h-4" />
+                  Pendientes
+                  {Object.keys(deliveredOrdersByTable).length > 0 && (
+                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                      billingSubTab === 'pending' ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-400'
+                    }`}>
+                      {Object.values(deliveredOrdersByTable).reduce((s, arr) => s + arr.length, 0)}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => { setBillingSubTab('history'); loadBills() }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    billingSubTab === 'history'
+                      ? 'bg-emerald-500 text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Historial
+                </button>
               </div>
 
-              {/* Historial de Facturas Generadas */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Receipt className="w-5 h-5 text-emerald-400" />
-                      Historial de Facturas
-                    </CardTitle>
-                    <Button 
-                      size="sm" 
-                      variant="secondary"
-                      onClick={loadBills}
-                      disabled={loadingBills}
-                    >
-                      <RefreshCw className={`w-4 h-4 ${loadingBills ? 'animate-spin' : ''}`} />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {loadingBills ? (
-                    <div className="text-center py-8">
-                      <LoadingState message="Cargando facturas..." />
-                    </div>
-                  ) : bills.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                      <p className="text-slate-400">No hay facturas generadas</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                      {bills.map((bill) => (
-                        <div 
-                          key={bill.id} 
-                          className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-emerald-500/30 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <p className="text-white font-semibold">Factura #{bill.billNumber}</p>
-                                <Badge variant="success" className="!bg-emerald-500/20 !text-emerald-400 !border-emerald-500/30">
-                                  Pagada
-                                </Badge>
+              {/* Pending sub-tab */}
+              {billingSubTab === 'pending' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Receipt className="w-5 h-5 text-amber-400" />
+                        Facturas Pendientes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {Object.keys(deliveredOrdersByTable).length === 0 ? (
+                          <div className="text-center py-8">
+                            <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                            <p className="text-slate-400">No hay órdenes entregadas pendientes de facturar</p>
+                          </div>
+                        ) : (
+                          Object.entries(deliveredOrdersByTable).map(([tableNumStr, tableOrders]) => {
+                            const tableNumber = Number(tableNumStr)
+                            const tableTotal = tableOrders.reduce((sum, o) => sum + (o.valueToPay || 0), 0)
+                            const orderIds = tableOrders.map(o => o.id)
+                            return (
+                              <div key={tableNumber} className="rounded-xl border border-slate-700/50 overflow-hidden">
+                                {/* Table group header */}
+                                <div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700/50">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                                      <span className="text-amber-400 font-bold text-sm">{tableNumber}</span>
+                                    </div>
+                                    <div>
+                                      <p className="text-white font-semibold">Mesa {tableNumber}</p>
+                                      <p className="text-slate-400 text-xs">
+                                        {tableOrders.length} orden{tableOrders.length > 1 ? 'es' : ''} entregada{tableOrders.length > 1 ? 's' : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <p className="text-amber-400 font-bold">{formatPrice(tableTotal)}</p>
+                                    {tableOrders.length > 1 && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        leftIcon={<Link2 className="w-4 h-4" />}
+                                        onClick={() => handleOpenUnifyPreview(tableNumber, orderIds)}
+                                        className="!border-purple-500 !text-purple-400 hover:!bg-purple-500/10"
+                                      >
+                                        Unificar Factura
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                                {/* Individual orders */}
+                                <div className="divide-y divide-slate-700/30">
+                                  {tableOrders.map((order) => (
+                                    <div key={order.id} className="flex items-center justify-between p-4 bg-slate-800/50">
+                                      <div>
+                                        <p className="text-white font-medium">{order.clientName || order.customerName || 'Cliente'}</p>
+                                        <p className="text-slate-400 text-sm">Orden #{order.id}</p>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <p className="text-amber-400 font-bold">{formatPrice(order.valueToPay || 0)}</p>
+                                        <Button
+                                          size="sm"
+                                          variant="primary"
+                                          onClick={() => handleOpenBillPreview(order)}
+                                        >
+                                          Ver y Facturar
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                              <p className="text-slate-300 mb-1">Cliente: {bill.clientName}</p>
-                              <p className="text-slate-400 text-sm">
-                                Fecha: {new Date(bill.billingDate).toLocaleDateString('es-CO', { 
-                                  day: 'numeric', 
-                                  month: 'long', 
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                              <p className="text-slate-400 text-sm mt-1">
-                                {bill.items?.length ?? 0} {(bill.items?.length ?? 0) === 1 ? 'producto' : 'productos'}
-                              </p>
-                              {bill.createdBy && (
-                                <p className="text-slate-400 text-sm">Creada por: {bill.createdBy}</p>
-                              )}
+                            )
+                          })
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <DollarSign className="w-5 h-5 text-emerald-400" />
+                        Resumen del Día
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                          <p className="text-slate-400 text-sm">Total Ventas Hoy</p>
+                          <p className="text-3xl font-bold text-emerald-400">
+                            {formatPrice(orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0))}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-4 rounded-xl bg-slate-800/50">
+                            <p className="text-slate-400 text-sm">Órdenes Completadas</p>
+                            <p className="text-2xl font-bold text-white">
+                              {orders.filter(o => o.status === OrderStatus.DELIVERED).length}
+                            </p>
+                          </div>
+                          <div className="p-4 rounded-xl bg-slate-800/50">
+                            <p className="text-slate-400 text-sm">Ticket Promedio</p>
+                            <p className="text-2xl font-bold text-white">
+                              {formatPrice(orders.length > 0 ? orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0) / orders.length : 0)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* History sub-tab */}
+              {billingSubTab === 'history' && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <CardTitle className="flex items-center gap-2">
+                        <Receipt className="w-5 h-5 text-emerald-400" />
+                        Historial de Facturas
+                        {filteredBills.length > 0 && (
+                          <span className="text-slate-400 text-sm font-normal ml-1">
+                            ({filteredBills.length} {filteredBills.length === 1 ? 'factura' : 'facturas'})
+                          </span>
+                        )}
+                      </CardTitle>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        leftIcon={<RefreshCw className={`w-4 h-4 ${loadingBills ? 'animate-spin' : ''}`} />}
+                        onClick={() => { loadBills(); setBillsPage(1) }}
+                        disabled={loadingBills}
+                      >
+                        Actualizar
+                      </Button>
+                    </div>
+                    {/* Filters */}
+                    <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                      <input
+                        type="text"
+                        placeholder="Buscar por cliente..."
+                        value={billsClientFilter}
+                        onChange={e => { setBillsClientFilter(e.target.value); setBillsPage(1) }}
+                        className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                      <input
+                        type="date"
+                        value={billsDateFrom}
+                        onChange={e => { setBillsDateFrom(e.target.value); setBillsPage(1) }}
+                        className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                      <input
+                        type="date"
+                        value={billsDateTo}
+                        onChange={e => { setBillsDateTo(e.target.value); setBillsPage(1) }}
+                        className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                      {(billsClientFilter || billsDateFrom || billsDateTo) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => { setBillsClientFilter(''); setBillsDateFrom(''); setBillsDateTo(''); setBillsPage(1) }}
+                        >
+                          Limpiar
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingBills ? (
+                      <div className="text-center py-8">
+                        <LoadingState message="Cargando facturas..." />
+                      </div>
+                    ) : filteredBills.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                        <p className="text-slate-400">
+                          {bills.length === 0 ? 'No hay facturas generadas' : 'No hay facturas que coincidan con los filtros'}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-3">
+                          {paginatedBills.map((bill) => (
+                            <div
+                              key={bill.id}
+                              className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-emerald-500/30 transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <p className="text-white font-semibold">Factura #{bill.billNumber}</p>
+                                    <Badge variant="success" className="!bg-emerald-500/20 !text-emerald-400 !border-emerald-500/30">
+                                      Pagada
+                                    </Badge>
+                                    {bill.items?.length > 1 && (
+                                      <Badge variant="info" className="!bg-purple-500/20 !text-purple-400 !border-purple-500/30">
+                                        Unificada
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-slate-300 mb-1">Cliente: {bill.clientName}</p>
+                                  <p className="text-slate-400 text-sm">Fecha: {formatBillDate(bill.billingDate)}</p>
+                                  <p className="text-slate-400 text-sm mt-1">
+                                    {bill.items?.length ?? 0} {(bill.items?.length ?? 0) === 1 ? 'producto' : 'productos'}
+                                  </p>
+                                  {bill.createdBy && (
+                                    <p className="text-slate-400 text-sm">Creada por: {bill.createdBy}</p>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-2xl font-bold text-emerald-400 mb-3">
+                                    {formatPrice(bill.totalAmount)}
+                                  </p>
+                                  <Button
+                                    size="sm"
+                                    variant="primary"
+                                    onClick={() => handleDownloadBill(bill.id)}
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                    Descargar PDF
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-emerald-400 mb-3">
-                                {formatPrice(bill.totalAmount)}
-                              </p>
-                              <Button 
-                                size="sm" 
-                                variant="primary"
-                                onClick={() => handleDownloadBill(bill.id)}
-                                className="flex items-center gap-2"
+                          ))}
+                        </div>
+
+                        {/* Pagination */}
+                        {totalBillPages > 1 && (
+                          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700/50">
+                            <p className="text-slate-400 text-sm">
+                              Página {billsPage} de {totalBillPages} · {filteredBills.length} facturas
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setBillsPage(p => Math.max(1, p - 1))}
+                                disabled={billsPage === 1}
                               >
-                                <Download className="w-4 h-4" />
-                                Descargar PDF
+                                Anterior
+                              </Button>
+                              {Array.from({ length: totalBillPages }, (_, i) => i + 1)
+                                .filter(p => p === 1 || p === totalBillPages || Math.abs(p - billsPage) <= 1)
+                                .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                                  if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...')
+                                  acc.push(p)
+                                  return acc
+                                }, [])
+                                .map((p, idx) =>
+                                  p === '...' ? (
+                                    <span key={`ellipsis-${idx}`} className="text-slate-500 px-1">…</span>
+                                  ) : (
+                                    <button
+                                      key={p}
+                                      onClick={() => setBillsPage(p as number)}
+                                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-all ${
+                                        billsPage === p
+                                          ? 'bg-emerald-500 text-white'
+                                          : 'bg-slate-700 text-slate-400 hover:text-white'
+                                      }`}
+                                    >
+                                      {p}
+                                    </button>
+                                  )
+                                )}
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => setBillsPage(p => Math.min(totalBillPages, p + 1))}
+                                disabled={billsPage === totalBillPages}
+                              >
+                                Siguiente
                               </Button>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
@@ -1072,6 +1357,133 @@ const OrdersPage: FC = () => {
                 onClick={() => setIsDetailModalOpen(false)}
               >
                 Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bill Preview / Confirmation Modal */}
+      {isBillPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 rounded-2xl w-full max-w-2xl border border-slate-700 max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-700">
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  {pendingBillType === 'unified' ? 'Factura Unificada — Mesa ' + pendingUnifyTableNumber : 'Confirmar Factura'}
+                </h3>
+                <p className="text-slate-400 text-sm mt-1">
+                  {pendingBillType === 'unified'
+                    ? `${pendingUnifyOrderIds.length} pedidos · Total combinado`
+                    : 'Revisa los detalles antes de facturar'}
+                </p>
+              </div>
+              <button
+                onClick={() => { setIsBillPreviewOpen(false); setBillPreviewItems([]) }}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <Plus className="w-5 h-5 text-slate-400 rotate-45" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {isLoadingPreview ? (
+                <div className="flex flex-col items-center py-12 gap-3">
+                  <LoadingState />
+                  <p className="text-slate-400 text-sm">Cargando detalles del pedido...</p>
+                </div>
+              ) : billPreviewItems.length === 0 ? (
+                <p className="text-slate-400 text-center py-8">No se pudieron cargar los detalles</p>
+              ) : (
+                <div className="space-y-6">
+                  {billPreviewItems.map((item, idx) => (
+                    <div key={item.id} className="space-y-3">
+                      {pendingBillType === 'unified' && (
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 text-xs flex items-center justify-center font-bold">{idx + 1}</span>
+                          <p className="text-white font-semibold">{item.clientName || item.customerName || 'Cliente'}</p>
+                          <span className="text-slate-500 text-sm">· Orden #{item.id}</span>
+                        </div>
+                      )}
+                      {pendingBillType === 'single' && (
+                        <div className="grid grid-cols-2 gap-3 mb-2">
+                          <div className="bg-slate-800/50 rounded-xl p-3">
+                            <p className="text-slate-400 text-xs mb-1">Cliente</p>
+                            <p className="text-white font-medium">{item.clientName || item.customerName}</p>
+                          </div>
+                          <div className="bg-slate-800/50 rounded-xl p-3">
+                            <p className="text-slate-400 text-xs mb-1">Mesa · Orden</p>
+                            <p className="text-white font-medium">Mesa {item.tableNumber} · #{item.id}</p>
+                          </div>
+                        </div>
+                      )}
+                      {item.orderItemList && item.orderItemList.length > 0 ? (
+                        <div className="space-y-2">
+                          {item.orderItemList.map((product, pIdx) => (
+                            <div
+                              key={`${item.id}-${product.id}-${pIdx}`}
+                              className="flex items-center justify-between bg-slate-800/50 rounded-xl px-4 py-3"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-white text-sm font-bold">
+                                  {product.quantity}
+                                </span>
+                                <div>
+                                  <p className="text-white text-sm font-medium">{product.productName}</p>
+                                  <p className="text-slate-400 text-xs">{formatPrice(product.unitPrice)} c/u</p>
+                                </div>
+                              </div>
+                              <p className="text-emerald-400 font-semibold text-sm">{formatPrice(product.totalPrice)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-slate-500 text-sm text-center py-2">Sin detalle de productos cargado</p>
+                      )}
+                      {pendingBillType === 'unified' && idx < billPreviewItems.length - 1 && (
+                        <div className="border-t border-slate-700/50" />
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Combined total */}
+                  <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-300 font-medium">
+                        {pendingBillType === 'unified' ? 'Total Unificado' : 'Total a Pagar'}
+                      </span>
+                      <span className="text-2xl font-bold text-emerald-400">
+                        {formatPrice(billPreviewItems.reduce((s, o) => s + (o.valueToPay || o.total || 0), 0))}
+                      </span>
+                    </div>
+                    {pendingBillType === 'unified' && (
+                      <p className="text-slate-400 text-xs mt-1">
+                        {pendingUnifyOrderIds.length} pedidos · {billPreviewItems.reduce((s, o) => s + (o.orderItemList?.length ?? 0), 0)} productos en total
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-slate-700 flex gap-3">
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={handleConfirmBill}
+                disabled={isLoadingPreview}
+              >
+                <Receipt className="w-4 h-4 mr-2" />
+                {pendingBillType === 'unified' ? 'Confirmar Factura Unificada' : 'Confirmar y Facturar'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => { setIsBillPreviewOpen(false); setBillPreviewItems([]) }}
+              >
+                Cancelar
               </Button>
             </div>
           </div>
