@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, type FC } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { 
-  Wine, Beer, GlassWater, Grape, Search, Loader2, 
+import {
+  Wine, Beer, GlassWater, Grape, Search, Loader2,
   ShoppingCart, Plus, Minus, Send, X, User,
-  Trash2, ArrowLeft
+  Trash2, ArrowLeft, AlertTriangle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { productService } from '../../features/products/api/productService'
@@ -65,7 +65,7 @@ const PublicMenuPage: FC = () => {
     const loadProducts = async () => {
       try {
         const data = await productService.getAll()
-        setProducts(data.filter(p => p.available !== false))
+        setProducts(data.filter(p => p.active !== false))
       } catch (err) {
         setError('load_error')
         console.error(err)
@@ -113,6 +113,7 @@ const PublicMenuPage: FC = () => {
 
   // Cart functions
   const addToCart = (product: ProductDto) => {
+    if (product.available === false) return
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id)
       if (existing) {
@@ -191,7 +192,12 @@ const PublicMenuPage: FC = () => {
       navigate(`/pedido-confirmado/${selectedTable}`)
     } catch (err: unknown) {
       console.error('Error creating order:', err)
-      toast.error('Error al enviar el pedido')
+      const axiosData = (err as any)?.response?.data
+      const errorMessage =
+        (typeof axiosData === 'string' ? axiosData : axiosData?.message) ||
+        (err instanceof Error ? err.message : null) ||
+        'Error al enviar el pedido'
+      toast.error(errorMessage)
     } finally {
       setSubmitting(false)
     }
@@ -325,15 +331,26 @@ const PublicMenuPage: FC = () => {
             <div className="space-y-3">
               {categoryProducts.map((product) => {
                 const cartItem = cart.find(item => item.product.id === product.id)
-                
+                const isAvailable = product.available !== false
+
                 return (
-                  <article 
+                  <article
                     key={product.id}
-                    className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-700/50 hover:border-slate-600/50 transition-all"
+                    className={`bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 border border-slate-700/50 transition-all relative ${
+                      !isAvailable ? 'opacity-50' : 'hover:border-slate-600/50'
+                    }`}
                   >
+                    {/* No disponible badge */}
+                    {!isAvailable && (
+                      <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-600/90 text-slate-300 text-xs font-medium">
+                        <AlertTriangle className="w-3 h-3" />
+                        No disponible
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-semibold text-lg truncate">
+                        <h3 className="text-white font-semibold text-lg truncate pr-24">
                           {product.name}
                         </h3>
                         {product.description && (
@@ -345,10 +362,14 @@ const PublicMenuPage: FC = () => {
                           {formatPrice(product.price || 0)}
                         </span>
                       </div>
-                      
+
                       {/* Add to cart controls */}
                       <div className="flex-shrink-0">
-                        {cartItem ? (
+                        {!isAvailable ? (
+                          <div className="p-3 bg-slate-700 text-slate-500 rounded-xl cursor-not-allowed">
+                            <Plus className="w-5 h-5" />
+                          </div>
+                        ) : cartItem ? (
                           <div className="flex items-center gap-2 bg-slate-700/50 rounded-lg p-1">
                             <button
                               onClick={() => updateQuantity(product.id, -1)}

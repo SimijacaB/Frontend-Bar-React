@@ -12,7 +12,8 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
-  Boxes
+  Boxes,
+  Power
 } from 'lucide-react'
 import { Card, CardContent, Badge, LoadingState, Pagination } from '../../components/ui'
 import Button from '../../components/ui/Button'
@@ -369,15 +370,17 @@ interface ProductsTabProps {
   onRefresh: () => void
   onSave: (product: ProductRequestDto | UpdateProductDto, isEdit: boolean, id?: number) => Promise<void>
   onDelete: (code: string) => Promise<void>
+  onToggleActive: (id: number) => Promise<void>
 }
 
-const ProductsTab: FC<ProductsTabProps> = ({ 
-  products, 
-  ingredients, 
-  isLoading, 
-  onRefresh, 
-  onSave, 
-  onDelete 
+const ProductsTab: FC<ProductsTabProps> = ({
+  products,
+  ingredients,
+  isLoading,
+  onRefresh,
+  onSave,
+  onDelete,
+  onToggleActive
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
@@ -590,13 +593,14 @@ const ProductsTab: FC<ProductsTabProps> = ({
                   <th className="text-left p-4 text-slate-400 font-medium">Categoría</th>
                   <th className="text-left p-4 text-slate-400 font-medium">Precio</th>
                   <th className="text-left p-4 text-slate-400 font-medium">Preparado</th>
+                  <th className="text-left p-4 text-slate-400 font-medium">Estado</th>
                   <th className="text-right p-4 text-slate-400 font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center p-10 text-slate-400">
+                    <td colSpan={7} className="text-center p-10 text-slate-400">
                       <Package className="w-10 h-10 mx-auto mb-3 text-slate-700" />
                       No se encontraron productos
                     </td>
@@ -626,12 +630,34 @@ const ProductsTab: FC<ProductsTabProps> = ({
                         )}
                       </td>
                       <td className="p-4">
+                        {product.active !== false ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            Activo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30">
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-4">
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => handleOpenModal(product)}
                             className="p-2 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
                           >
                             <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => onToggleActive(product.id)}
+                            title={product.active !== false ? 'Desactivar producto' : 'Activar producto'}
+                            className={`p-2 rounded-lg transition-colors ${
+                              product.active !== false
+                                ? 'text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
+                                : 'text-amber-400 hover:text-emerald-400 hover:bg-emerald-500/10'
+                            }`}
+                          >
+                            <Power className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(product.code || '')}
@@ -891,6 +917,8 @@ const StockTab: FC<StockTabProps> = ({
   const [quantity, setQuantity] = useState(0)
   const [selectedCode, setSelectedCode] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [outOfStockExpanded, setOutOfStockExpanded] = useState(true)
+  const [lowStockExpanded, setLowStockExpanded] = useState(false)
 
   const filteredStock = (stock || []).filter(item =>
     item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -912,8 +940,8 @@ const StockTab: FC<StockTabProps> = ({
     ing => ing.code && !(stock || []).some(s => s.code === ing.code)
   )
 
-  // Only non-prepared products can have stock (prepared products derive availability from ingredients)
-  // Use strict equality check to handle null/undefined from backend
+  // Only non-prepared products can have direct stock entries
+  // (prepared products derive availability from ingredient stock levels)
   const productsWithoutStock = (products || []).filter(
     p => p.code && p.isPrepared !== true && !(stock || []).some(s => s.code === p.code)
   )
@@ -960,8 +988,10 @@ const StockTab: FC<StockTabProps> = ({
 
   // Stats
   const totalItems = stock.length
-  const lowStockItems = stock.filter(s => s.quantity < 10).length
+  const lowStockItems = stock.filter(s => s.quantity > 0 && s.quantity < 10).length
   const outOfStockItems = stock.filter(s => s.quantity === 0).length
+  const outOfStockList = stock.filter(s => s.quantity === 0)
+  const lowStockList = stock.filter(s => s.quantity > 0 && s.quantity < 10)
 
   if (isLoading) {
     return <LoadingState message="Cargando stock..." />
@@ -1043,6 +1073,59 @@ const StockTab: FC<StockTabProps> = ({
           </CardContent>
         </Card>
       </div>
+
+      {/* Alert Banners */}
+      {outOfStockItems > 0 && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 overflow-hidden">
+          <button
+            onClick={() => setOutOfStockExpanded(prev => !prev)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-red-500/5 transition-colors"
+          >
+            <div className="flex items-center gap-2 text-red-400 font-medium text-sm">
+              <AlertTriangle className="w-4 h-4 animate-pulse flex-shrink-0" />
+              {outOfStockItems} ítem{outOfStockItems > 1 ? 's' : ''} SIN STOCK — productos no disponibles para venta
+            </div>
+            <span className="text-red-400 text-xs">{outOfStockExpanded ? '▲' : '▼'}</span>
+          </button>
+          {outOfStockExpanded && (
+            <div className="px-4 pb-3 flex flex-wrap gap-2">
+              {outOfStockList.map(item => (
+                <div key={item.code} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/15 border border-red-500/20 text-xs">
+                  <span className="text-red-300 font-medium">{item.name || item.code}</span>
+                  <span className="text-red-500/70 font-mono">{item.code}</span>
+                  <span className="text-red-400 font-bold">0</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {lowStockItems > 0 && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 overflow-hidden">
+          <button
+            onClick={() => setLowStockExpanded(prev => !prev)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-amber-500/5 transition-colors"
+          >
+            <div className="flex items-center gap-2 text-amber-400 font-medium text-sm">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              {lowStockItems} ítem{lowStockItems > 1 ? 's' : ''} con STOCK BAJO — reponer pronto
+            </div>
+            <span className="text-amber-400 text-xs">{lowStockExpanded ? '▲' : '▼'}</span>
+          </button>
+          {lowStockExpanded && (
+            <div className="px-4 pb-3 flex flex-wrap gap-2">
+              {lowStockList.map(item => (
+                <div key={item.code} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/20 text-xs">
+                  <span className="text-amber-300 font-medium">{item.name || item.code}</span>
+                  <span className="text-amber-500/70 font-mono">{item.code}</span>
+                  <span className="text-amber-400 font-bold">{item.quantity}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -1404,6 +1487,17 @@ const InventoryPanel: FC = () => {
     }
   }
 
+  const handleToggleActive = async (id: number) => {
+    try {
+      const updated = await productService.toggleActive(id)
+      toast.success(updated.active ? 'Producto activado' : 'Producto desactivado')
+      fetchProducts()
+    } catch (error) {
+      console.error('Error toggling product:', error)
+      toast.error('Error al cambiar estado del producto')
+    }
+  }
+
   // Stock handlers
   const handleAddStock = async (quantity: number, code: string) => {
     try {
@@ -1545,6 +1639,7 @@ const InventoryPanel: FC = () => {
               onRefresh={fetchProducts}
               onSave={handleSaveProduct}
               onDelete={handleDeleteProduct}
+              onToggleActive={handleToggleActive}
             />
           )}
           {activeTab === 'stock' && (

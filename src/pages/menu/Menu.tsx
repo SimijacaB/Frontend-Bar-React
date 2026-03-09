@@ -1,5 +1,6 @@
-import { useState, useMemo, type FC } from 'react'
-import { Search, Filter, Plus, Minus, ShoppingCart } from 'lucide-react'
+import { useState, useMemo, useEffect, type FC } from 'react'
+import { Search, Filter, Plus, Minus, ShoppingCart, AlertTriangle, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useProducts } from '../../features/products/hooks/hooks'
 import { useCart } from '../../features/products/context/CartContext'
 import { Card, CardContent, Input, Badge, LoadingState } from '../../components/ui'
@@ -34,17 +35,37 @@ const MenuPage: FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [quantities, setQuantities] = useState<Record<number, number>>({})
+  const [stockBannerDismissed, setStockBannerDismissed] = useState(false)
 
   // Use API data if available, otherwise fallback
   const products = useMemo(() => {
     if (data && data.length > 0) {
-      return data.map(p => ({
-        ...p,
-        price: (p as any).price ?? 10.00, // Default price if not available
-      }))
+      return data
+        .filter(p => (p as any).active !== false)
+        .map(p => ({
+          ...p,
+          price: (p as any).price ?? 10.00, // Default price if not available
+        }))
     }
     return fallbackProducts
   }, [data])
+
+  // Count out-of-stock products from API data (not fallback)
+  const outOfStockCount = useMemo(() => {
+    if (!data || data.length === 0) return 0
+    return products.filter(p => (p as any).available === false).length
+  }, [products, data])
+
+  // Toast alert on load for out-of-stock items
+  useEffect(() => {
+    if (!loading && outOfStockCount > 0) {
+      toast(`${outOfStockCount} producto${outOfStockCount > 1 ? 's' : ''} sin stock disponible`, {
+        icon: '⚠️',
+        duration: 6000,
+        style: { background: '#1e293b', color: '#fbbf24', border: '1px solid #d97706' },
+      })
+    }
+  }, [loading, outOfStockCount])
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -75,6 +96,7 @@ const MenuPage: FC = () => {
   }
 
   const handleAddToCart = (product: typeof products[0]) => {
+    if ((product as any).available === false) return
     const quantity = quantities[product.id] || 1
     addItem(
       { id: product.id, name: product.name, code: product.code, category: product.category as Category, description: product.description },
@@ -164,6 +186,25 @@ const MenuPage: FC = () => {
             </div>
           )}
 
+          {/* Stock Alert Banner */}
+          {!loading && !stockBannerDismissed && outOfStockCount > 0 && (
+            <div className="mb-6 flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 animate-pulse" />
+                {outOfStockCount} producto{outOfStockCount > 1 ? 's' : ''} sin stock — aparecen deshabilitados en la carta
+                <Link to="/admin/inventario" className="underline hover:text-amber-300 ml-1">
+                  Ver inventario
+                </Link>
+              </div>
+              <button
+                onClick={() => setStockBannerDismissed(true)}
+                className="p-1 hover:bg-amber-500/20 rounded-lg flex-shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Products by Category */}
           {Object.entries(groupedProducts).map(([category, categoryProducts]) => (
             <div key={category} className="mb-12">
@@ -178,9 +219,10 @@ const MenuPage: FC = () => {
                 {categoryProducts.map((product) => {
                   const itemInCart = getItemInCart(product.id)
                   const currentQuantity = quantities[product.id] || 0
+                  const isOutOfStock = (product as any).available === false
 
                   return (
-                    <Card key={product.id} hover className="flex flex-col">
+                    <Card key={product.id} hover className={`flex flex-col${isOutOfStock ? ' opacity-60' : ''}`}>
                       <CardContent className="flex flex-col flex-1">
                         {/* Product Info */}
                         <div className="flex-1">
@@ -188,11 +230,16 @@ const MenuPage: FC = () => {
                             <h3 className="text-lg font-semibold text-white">
                               {product.name}
                             </h3>
-                            {itemInCart && (
+                            {isOutOfStock ? (
+                              <span className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/30">
+                                <AlertTriangle className="w-3 h-3" />
+                                Sin Stock
+                              </span>
+                            ) : itemInCart ? (
                               <Badge variant="success" className="flex-shrink-0">
                                 {itemInCart.quantity} en carrito
                               </Badge>
-                            )}
+                            ) : null}
                           </div>
                           <p className="text-slate-400 text-sm mb-4 line-clamp-2">
                             {product.description || 'Deliciosa bebida'}
@@ -207,34 +254,44 @@ const MenuPage: FC = () => {
                             </span>
                           </div>
 
-                          {/* Quantity Selector */}
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center bg-slate-700 rounded-lg">
+                          {/* Quantity Selector / Out of Stock */}
+                          {isOutOfStock ? (
+                            <button
+                              disabled
+                              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-700 text-slate-500 font-medium cursor-not-allowed"
+                            >
+                              <AlertTriangle className="w-4 h-4" />
+                              No disponible
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center bg-slate-700 rounded-lg">
+                                <button
+                                  onClick={() => handleQuantityChange(product.id, -1)}
+                                  className="p-2 text-slate-400 hover:text-white transition-colors"
+                                  disabled={currentQuantity === 0}
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                <span className="w-8 text-center text-white font-medium">
+                                  {currentQuantity || 1}
+                                </span>
+                                <button
+                                  onClick={() => handleQuantityChange(product.id, 1)}
+                                  className="p-2 text-slate-400 hover:text-white transition-colors"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
                               <button
-                                onClick={() => handleQuantityChange(product.id, -1)}
-                                className="p-2 text-slate-400 hover:text-white transition-colors"
-                                disabled={currentQuantity === 0}
+                                onClick={() => handleAddToCart(product)}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors"
                               >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="w-8 text-center text-white font-medium">
-                                {currentQuantity || 1}
-                              </span>
-                              <button
-                                onClick={() => handleQuantityChange(product.id, 1)}
-                                className="p-2 text-slate-400 hover:text-white transition-colors"
-                              >
-                                <Plus className="w-4 h-4" />
+                                <ShoppingCart className="w-4 h-4" />
+                                Agregar
                               </button>
                             </div>
-                            <button
-                              onClick={() => handleAddToCart(product)}
-                              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors"
-                            >
-                              <ShoppingCart className="w-4 h-4" />
-                              Agregar
-                            </button>
-                          </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

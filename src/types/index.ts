@@ -50,6 +50,7 @@ export interface ProductDto {
   category: Category | string
   price?: number
   available?: boolean
+  active?: boolean
 }
 
 export interface ProductDetailDto {
@@ -141,6 +142,7 @@ export interface ProductResponseDto {
   photoId?: number
   isPrepared: boolean
   category: string
+  active: boolean
   ingredients: ProductIngredientResponseDto[]
 }
 

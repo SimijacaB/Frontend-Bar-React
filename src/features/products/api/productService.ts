@@ -15,6 +15,7 @@ export interface ProductForListDto {
   price: number
   category: string
   isPrepared: boolean
+  active: boolean
 }
 
 export const productService = {
@@ -90,5 +91,11 @@ export const productService = {
   // Delete product
   async delete(code: string): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.PRODUCTS.DELETE(code))
+  },
+
+  // Toggle product active/inactive
+  async toggleActive(id: number): Promise<ProductResponseDto> {
+    const response = await apiClient.patch(API_ENDPOINTS.PRODUCTS.TOGGLE_ACTIVE(id))
+    return response.data
   },
 }

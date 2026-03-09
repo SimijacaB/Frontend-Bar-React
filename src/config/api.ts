@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
     SAVE: `${API_BASE_URL}/api/products`,
     UPDATE: (id: number) => `${API_BASE_URL}/api/products/${id}`,
     DELETE: (code: string) => `${API_BASE_URL}/api/products/code/${code}`,
+    TOGGLE_ACTIVE: (id: number) => `${API_BASE_URL}/api/products/${id}/active`,
   },
 
   // Orders

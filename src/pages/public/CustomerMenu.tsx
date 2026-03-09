@@ -109,52 +109,64 @@ const CustomerMenu: FC = () => {
             console.error('Error loading inventory:', err)
           }
         }
-        
-        // Map products with stock info
+
+        // Map products with stock info (include only active products, show unavailable state)
         const productsWithStock: ProductWithStock[] = productsData
-          .filter(p => p.available !== false)
+          .filter(product => product.active !== false)
           .map(product => {
-            // Default: has stock
-            let hasStock = true
+            // Default: use the `available` field from backend as the stock signal
+            let hasStock = product.available !== false
             let stockWarning: string | undefined
-            
+
             if (isStaff && inventoryData.length > 0) {
               // Find product details (if prepared)
               const detail = productDetails.find(d => d?.id === product.id)
-              
+
               if (detail?.isPrepared && detail.ingredients?.length > 0) {
                 // Check if all ingredients have stock
                 const missingIngredients: string[] = []
-                
+
                 for (const ing of detail.ingredients) {
-                  const invItem = inventoryData.find(inv => 
+                  const invItem = inventoryData.find(inv =>
                     inv.ingredientName?.toLowerCase() === ing.ingredientName?.toLowerCase() ||
                     inv.ingredientCode === product.code
                   )
-                  
-                  if (!invItem || invItem.quantity < ing.quantity) {
+
+                  if (!invItem || invItem.quantity < ing.amount) {
                     missingIngredients.push(ing.ingredientName)
                     hasStock = false
                   }
                 }
-                
+
                 if (missingIngredients.length > 0) {
                   stockWarning = `Sin stock: ${missingIngredients.join(', ')}`
                 }
               } else {
                 // Non-prepared product - check direct inventory by product code
                 const invItem = inventoryData.find(inv => inv.ingredientCode === product.code)
-                if (invItem && invItem.quantity <= 0) {
+                if (!invItem || invItem.quantity <= 0) {
                   hasStock = false
-                  stockWarning = 'Sin stock disponible'
+                  stockWarning = !invItem ? 'Sin registro de inventario' : 'Sin stock disponible'
                 }
               }
             }
-            
+
             return { ...product, hasStock, stockWarning }
           })
-        
+
         setProducts(productsWithStock)
+
+        // Toast alert for staff if there are out-of-stock products
+        if (isStaff) {
+          const outOfStock = productsWithStock.filter(p => !p.hasStock).length
+          if (outOfStock > 0) {
+            toast(`${outOfStock} producto${outOfStock > 1 ? 's' : ''} sin stock — revisar inventario`, {
+              icon: '⚠️',
+              duration: 6000,
+              style: { background: '#1e293b', color: '#fbbf24', border: '1px solid #d97706' },
+            })
+          }
+        }
       } catch (err) {
         console.error('Error loading products:', err)
         toast.error('Error al cargar el menú')
@@ -204,6 +216,8 @@ const CustomerMenu: FC = () => {
 
   // Cart functions
   const addToCart = (product: ProductDto) => {
+    const productWithStock = products.find(p => p.id === product.id)
+    if (productWithStock && !productWithStock.hasStock) return
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id)
       if (existing) {
@@ -279,7 +293,12 @@ const CustomerMenu: FC = () => {
       navigate(confirmationUrl)
     } catch (err: unknown) {
       console.error('Error creating order:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Error al enviar el pedido'
+      // Extract the actual backend error message from the Axios response
+      const axiosData = (err as any)?.response?.data
+      const errorMessage =
+        (typeof axiosData === 'string' ? axiosData : axiosData?.message) ||
+        (err instanceof Error ? err.message : null) ||
+        'Error al enviar el pedido'
       toast.error(errorMessage)
     } finally {
       setSubmitting(false)
@@ -451,22 +470,28 @@ const CustomerMenu: FC = () => {
                 <div
                   key={product.id}
                   className={`bg-slate-800/50 rounded-2xl p-3 border border-slate-700/50 relative ${
-                    !hasStock && isStaff ? 'opacity-60' : ''
+                    !hasStock ? 'opacity-60' : ''
                   }`}
                 >
-                  {/* Out of Stock Badge - Only for staff */}
-                  {!hasStock && isStaff && (
+                  {/* Out of Stock Badge */}
+                  {!hasStock && (
                     <div className="absolute top-2 right-2 z-10">
-                      <div className="bg-red-500/90 text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" />
-                        Sin Stock
-                      </div>
+                      {isStaff ? (
+                        <div className="bg-red-500/90 text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Sin Stock
+                        </div>
+                      ) : (
+                        <div className="bg-slate-600/90 text-slate-300 text-xs font-bold px-2 py-1 rounded-lg">
+                          Agotado
+                        </div>
+                      )}
                     </div>
                   )}
-                  
+
                   {/* Product Image Placeholder */}
                   <div className={`aspect-square bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl mb-3 flex items-center justify-center ${
-                    !hasStock && isStaff ? 'grayscale' : ''
+                    !hasStock ? 'grayscale' : ''
                   }`}>
                     {(() => {
                       const Icon = categoryIcons[product.category] || Wine
@@ -480,7 +505,7 @@ const CustomerMenu: FC = () => {
                   <p className="text-emerald-400 font-bold mb-2">
                     {formatPrice(product.price)}
                   </p>
-                  
+
                   {/* Stock Warning - Only for staff */}
                   {!hasStock && isStaff && productWithStock.stockWarning && (
                     <p className="text-red-400 text-xs mb-2 line-clamp-2">
@@ -500,18 +525,18 @@ const CustomerMenu: FC = () => {
                       <button
                         onClick={() => updateQuantity(product.id, 1)}
                         className="p-2 text-white hover:bg-slate-600 rounded-lg"
-                        disabled={!hasStock && isStaff}
+                        disabled={!hasStock}
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
-                  ) : !hasStock && isStaff ? (
+                  ) : !hasStock ? (
                     <button
                       disabled
                       className="w-full py-2 bg-slate-600 text-slate-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-not-allowed"
                     >
                       <AlertTriangle className="w-4 h-4" />
-                      No Disponible
+                      No disponible
                     </button>
                   ) : (
                     <button
