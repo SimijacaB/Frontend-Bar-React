@@ -15,6 +15,7 @@ import { ingredientService } from '../../features/ingredients/api/ingredientServ
 import type { IngredientDto, CreateIngredientDto, UpdateIngredientDto } from '../../types'
 import { UnitOfMeasure } from '../../types'
 import toast from 'react-hot-toast'
+import AdminLayout from './AdminLayout'
 
 const unitOfMeasureLabels: Record<string, string> = {
   ML: 'Mililitros (ML)',
@@ -133,7 +134,8 @@ const IngredientsPage: FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <AdminLayout>
+      <div className="min-h-screen bg-slate-950">
       {/* Header */}
       <section className="bg-gradient-to-b from-slate-900 to-slate-950 py-8">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -380,7 +382,8 @@ const IngredientsPage: FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AdminLayout>
   )
 }
 

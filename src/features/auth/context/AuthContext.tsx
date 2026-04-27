@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Call login endpoint with POST request
       const response = await apiClient.post(`${API_BASE_URL}/api/auth/login`, {
-        email: credentials.email,
+        username: credentials.username,
         password: credentials.password
       })
 

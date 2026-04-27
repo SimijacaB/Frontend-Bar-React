@@ -16,6 +16,7 @@ import { tableService, type TableDto, type TableRequestDto } from '../../feature
 import { useAuth } from '../../features/auth/context/AuthContext'
 import Button from '../../components/ui/Button'
 import { Input, Card, CardContent, LoadingState, Modal } from '../../components/ui'
+import AdminLayout from './AdminLayout'
 
 const statusConfig = {
   FREE: { 
@@ -221,9 +222,10 @@ const TableManagement: FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <AdminLayout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Gestión de Mesas</h1>
@@ -548,7 +550,8 @@ const TableManagement: FC = () => {
           </div>
         </Modal>
       </div>
-    </div>
+      </div>
+    </AdminLayout>
   )
 }
 

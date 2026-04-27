@@ -15,6 +15,7 @@ import {
   Boxes,
   Power
 } from 'lucide-react'
+import AdminLayout from './AdminLayout'
 import { Card, CardContent, Badge, LoadingState, Pagination } from '../../components/ui'
 import Button from '../../components/ui/Button'
 import CodeInput from '../../components/ui/CodeInput'
@@ -1536,7 +1537,8 @@ const InventoryPanel: FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <AdminLayout>
+      <div className="min-h-screen bg-slate-950">
       {/* Header */}
       <section className="bg-gradient-to-b from-slate-900 to-slate-950 py-8 border-b border-slate-800">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -1656,7 +1658,8 @@ const InventoryPanel: FC = () => {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </AdminLayout>
   )
 }
 

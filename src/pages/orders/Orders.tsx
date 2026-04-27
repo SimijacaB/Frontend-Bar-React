@@ -280,23 +280,6 @@ const OrdersPage: FC = () => {
     document.body.removeChild(link)
   }
 
-  // Generate bill for all orders of a table
-  const handleGenerateBillByTable = async (tableNumber: number, clientName: string) => {
-    try {
-      await billService.generateByTable(tableNumber, clientName)
-      
-      toast.success(`Factura de mesa ${tableNumber} generada`)
-      
-      // Refrescar órdenes y mesas después de facturar
-      await fetchOrders()
-      await loadTables()
-    } catch (err: any) {
-      console.error('Error generating bill by table:', err)
-      const errorMessage = err?.response?.data?.message || err?.message || 'Error al generar factura'
-      toast.error(errorMessage)
-    }
-  }
-
   // Unify all delivered orders of a table into a single bill
   const handleUnifyBillByTable = async (tableNumber: number, orderIds: number[]) => {
     try {

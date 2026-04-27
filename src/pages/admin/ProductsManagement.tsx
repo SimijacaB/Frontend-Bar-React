@@ -23,6 +23,7 @@ import type {
   ProductIngredientRequestDto
 } from '../../types'
 import toast from 'react-hot-toast'
+import AdminLayout from './AdminLayout'
 
 const categoryLabels: Record<string, string> = {
   BEER: 'Cervezas',
@@ -249,7 +250,8 @@ const ProductsPage: FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <AdminLayout>
+      <div className="min-h-screen bg-slate-950">
       {/* Header */}
       <section className="bg-gradient-to-b from-slate-900 to-slate-950 py-8">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -628,7 +630,8 @@ const ProductsPage: FC = () => {
 
             </form>
       </Modal>
-    </div>
+      </div>
+    </AdminLayout>
   )
 }
 

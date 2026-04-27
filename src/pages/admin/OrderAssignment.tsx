@@ -7,7 +7,9 @@ import {
   RefreshCw,
   CheckCircle,
   AlertCircle,
-  Users
+  Users,
+  Wifi,
+  WifiOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { orderService } from '../../features/orders/api/orderService'
@@ -15,6 +17,8 @@ import { waiterService, type WaiterWithOrdersDto } from '../../features/orders/a
 import { Card, CardContent, LoadingState } from '../../components/ui'
 import Button from '../../components/ui/Button'
 import type { OrderDto } from '../../types'
+import { useWebSocket } from '../../features/websocket/context/WebSocketContext'
+import AdminLayout from './AdminLayout'
 
 const OrderAssignment: FC = () => {
   const [unassignedOrders, setUnassignedOrders] = useState<OrderDto[]>([])
@@ -23,6 +27,7 @@ const OrderAssignment: FC = () => {
   const [loadingWaiters, setLoadingWaiters] = useState(true)
   const [assigning, setAssigning] = useState<number | null>(null)
   const [selectedWaiter, setSelectedWaiter] = useState<Record<number, string>>({})
+  const { isConnected } = useWebSocket()
 
   const fetchUnassignedOrders = async () => {
     setLoading(true)
@@ -53,17 +58,10 @@ const OrderAssignment: FC = () => {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
     fetchUnassignedOrders()
     fetchWaiters()
   }, [])
-
-  useEffect(() => {
-    if (unassignedOrders.length > 0) {
-      const interval = setInterval(fetchUnassignedOrders, 15000)
-      return () => clearInterval(interval)
-    }
-  }, [unassignedOrders.length])
 
   const handleAssignWaiter = async (orderId: number) => {
     const waiterUsername = selectedWaiter[orderId]
@@ -124,8 +122,9 @@ const OrderAssignment: FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
+    <AdminLayout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        {/* Header */}
       <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-700/50">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between mb-4">
@@ -138,14 +137,25 @@ const OrderAssignment: FC = () => {
                 <p className="text-sm text-slate-400">Pedidos de clientes QR sin mesero</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={fetchUnassignedOrders}
-              title="Actualizar"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Connection Status */}
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
+                isConnected 
+                  ? 'bg-emerald-500/20 text-emerald-400' 
+                  : 'bg-red-500/20 text-red-400'
+              }`}>
+                {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                {isConnected ? 'En vivo' : 'Desconectado'}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchUnassignedOrders}
+                title="Actualizar"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
 
           {/* Stats */}
@@ -279,7 +289,8 @@ const OrderAssignment: FC = () => {
           </div>
         )}
       </main>
-    </div>
+      </div>
+    </AdminLayout>
   )
 }
 

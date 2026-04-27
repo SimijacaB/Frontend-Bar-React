@@ -82,7 +82,6 @@ const CustomerMenu: FC = () => {
   const [myOrders, setMyOrders] = useState<OrderDto[]>([])
   const [isOrdersOpen, setIsOrdersOpen] = useState(false)
   const [loadingOrders, setLoadingOrders] = useState(false)
-  const [inventory, setInventory] = useState<InventoryResponseDto[]>([])
 
   // Load products and inventory
   useEffect(() => {
@@ -98,7 +97,6 @@ const CustomerMenu: FC = () => {
         if (isStaff) {
           try {
             inventoryData = await inventoryService.getAll()
-            setInventory(inventoryData)
             
             // Fetch details for prepared products to get ingredients
             const detailsPromises = productsData.map(p => 

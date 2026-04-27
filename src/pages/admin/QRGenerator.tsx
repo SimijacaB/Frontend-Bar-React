@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import toast from 'react-hot-toast'
+import AdminLayout from './AdminLayout'
 
 const QRGeneratorPage: FC = () => {
   const [baseUrl, setBaseUrl] = useState(window.location.origin)
@@ -148,8 +149,9 @@ const QRGeneratorPage: FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 py-8">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <AdminLayout>
+      <div className="min-h-screen bg-slate-950 py-8">
+        <div className="container mx-auto px-4 max-w-4xl">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 mb-4">
             <QrCode className="w-8 h-8 text-emerald-400" />
@@ -345,7 +347,8 @@ const QRGeneratorPage: FC = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </AdminLayout>
   )
 }
 

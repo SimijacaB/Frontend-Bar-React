@@ -1,36 +1,47 @@
 import { useState } from 'react'
 import type { FC } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Menu, X, ShoppingCart, User, LogOut, LayoutDashboard, UtensilsCrossed, ClipboardList, Package, QrCode, Users, TableProperties } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { Menu, X, ShoppingCart, User, LogOut, LayoutDashboard, UtensilsCrossed, ClipboardList, Package, QrCode, Users, TableProperties, Bell } from 'lucide-react'
 import { useCart } from '../../features/products/context/CartContext'
 import { useAuth } from '../../features/auth/context/AuthContext'
+import NotificationPanel from '../../features/websocket/components/NotificationPanel'
+import { useWebSocket } from '../../features/websocket/context/WebSocketContext'
 import beerIcon from '../../assets/icons/Beer Icon 48.png'
 
 const Header: FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
   const { itemCount } = useCart()
   const { user, isAuthenticated, logout } = useAuth()
+  const { notifications } = useWebSocket()
 
   // Check if user is admin (has ADMIN role)
   const isAdmin = user?.roles?.includes('ADMIN') ?? false
   // Check if user is only waiter (has WAITER role but not ADMIN)
   const isWaiterOnly = user?.roles?.includes('WAITER') && !isAdmin
 
+  interface NavLink {
+    href: string
+    label: string
+    icon?: LucideIcon
+  }
+
   // Public navigation links
-  const publicNavLinks = [
+  const publicNavLinks: NavLink[] = [
     { href: '/', label: 'Inicio' },
     { href: '/carta', label: 'Carta' },
   ]
 
   // Waiter navigation links - only their orders panel
-  const waiterNavLinks = [
+  const waiterNavLinks: NavLink[] = [
     { href: '/meseros', label: 'Mis Pedidos', icon: ClipboardList },
   ]
 
   // Admin navigation links - shown when authenticated as admin
-  const adminNavLinks = [
+  const adminNavLinks: NavLink[] = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/menu', label: 'Menú', icon: UtensilsCrossed },
     { href: '/orders', label: 'Pedidos', icon: ClipboardList },
@@ -69,7 +80,7 @@ const Header: FC = () => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => {
-              const IconComponent = 'icon' in link ? link.icon : null
+              const IconComponent = link.icon
               return (
                 <Link
                   key={link.href}
@@ -106,19 +117,33 @@ const Header: FC = () => {
 
             {/* User Menu */}
             {isAuthenticated ? (
-              <div className="hidden sm:flex items-center gap-2">
-                <span className="text-slate-300 text-sm">Hola, {user?.username}</span>
+              <>
+                {/* Notification Bell */}
                 <button
-                  onClick={() => {
-                    logout()
-                    navigate('/login')
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+                  onClick={() => setIsNotificationPanelOpen(true)}
+                  className="relative p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span className="text-sm font-medium">Salir</span>
+                  <Bell className="w-5 h-5" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      {notifications.length > 9 ? '9+' : notifications.length}
+                    </span>
+                  )}
                 </button>
-              </div>
+                <div className="hidden sm:flex items-center gap-2">
+                  <span className="text-slate-300 text-sm">Hola, {user?.username}</span>
+                  <button
+                    onClick={() => {
+                      logout()
+                      navigate('/login')
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm font-medium">Salir</span>
+                  </button>
+                </div>
+              </>
             ) : (
               <Link
                 to="/login"
@@ -155,7 +180,7 @@ const Header: FC = () => {
           <nav className="lg:hidden py-4 border-t border-slate-800">
             <div className="flex flex-col gap-1">
               {navLinks.map((link) => {
-                const IconComponent = 'icon' in link ? link.icon : null
+                const IconComponent = link.icon
                 return (
                   <Link
                     key={link.href}
@@ -211,6 +236,12 @@ const Header: FC = () => {
           </nav>
         )}
       </div>
+      
+      {/* Notification Panel */}
+      <NotificationPanel 
+        isOpen={isNotificationPanelOpen} 
+        onClose={() => setIsNotificationPanelOpen(false)} 
+      />
     </header>
   )
 }

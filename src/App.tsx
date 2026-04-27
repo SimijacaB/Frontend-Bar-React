@@ -1,6 +1,5 @@
 import type { FC } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
 
 // Layout
 import { Layout } from './components/layout'
@@ -8,6 +7,8 @@ import { Layout } from './components/layout'
 // Contexts
 import { CartProvider } from './features/products/context/CartContext'
 import { AuthProvider, useAuth } from './features/auth/context/AuthContext'
+import { WebSocketProvider } from './features/websocket/context/WebSocketContext'
+import { NotificationListener, NotificationToaster } from './features/websocket/components/NotificationListener'
 
 // Pages - Admin/Internal
 import Landing from './pages/landing/Landing'
@@ -60,35 +61,13 @@ const App: FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <CartProvider>
-          {/* Toast Notifications */}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: '#1e293b',
-                color: '#f1f5f9',
-                border: '1px solid #334155',
-                borderRadius: '12px',
-                padding: '12px 16px',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#10b981',
-                  secondary: '#f1f5f9',
-                },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#f1f5f9',
-                },
-              },
-            }}
-          />
-          
-          <Routes>
+        <WebSocketProvider>
+          <CartProvider>
+            {/* Toast Notifications */}
+            <NotificationToaster />
+            <NotificationListener />
+            
+            <Routes>
             {/* ============================================ */}
             {/* PUBLIC ROUTES - For customers via QR        */}
             {/* ============================================ */}
@@ -260,6 +239,7 @@ const App: FC = () => {
             />
           </Routes>
         </CartProvider>
+        </WebSocketProvider>
       </AuthProvider>
     </BrowserRouter>
   )

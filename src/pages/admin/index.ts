@@ -1,3 +1,7 @@
 export { default as QRGenerator } from './QRGenerator'
 export { default as OrderAssignment } from './OrderAssignment'
 export { default as TableManagement } from './TableManagement'
+export { default as AdminLayout } from './AdminLayout'
+export { default as IngredientsManagement } from './IngredientsManagement'
+export { default as ProductsManagement } from './ProductsManagement'
+export { default as InventoryPanel } from './InventoryPanel'
