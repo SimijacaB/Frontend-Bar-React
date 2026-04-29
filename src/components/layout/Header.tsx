@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FC } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Menu, X, ShoppingCart, User, LogOut, LayoutDashboard, UtensilsCrossed, ClipboardList, Package, QrCode, Users, TableProperties, Bell } from 'lucide-react'
+import { Menu, X, ShoppingCart, User, LogOut, LayoutDashboard, UtensilsCrossed, ClipboardList, Package, QrCode, Users, TableProperties, Bell, BarChart3 } from 'lucide-react'
 import { useCart } from '../../features/products/context/CartContext'
 import { useAuth } from '../../features/auth/context/AuthContext'
 import NotificationPanel from '../../features/websocket/components/NotificationPanel'
@@ -42,13 +42,14 @@ const Header: FC = () => {
 
   // Admin navigation links - shown when authenticated as admin
   const adminNavLinks: NavLink[] = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/menu', label: 'Menú', icon: UtensilsCrossed },
     { href: '/orders', label: 'Pedidos', icon: ClipboardList },
     { href: '/admin/inventario', label: 'Inventario', icon: Package },
     { href: '/admin/mesas', label: 'Mesas', icon: TableProperties },
     { href: '/admin/asignacion', label: 'Asignación', icon: Users },
     { href: '/admin/qr', label: 'QR', icon: QrCode },
+    { href: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },
   ]
 
   // Determine which links to show based on authentication and role

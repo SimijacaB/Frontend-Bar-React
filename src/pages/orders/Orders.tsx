@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, type FC } from 'react'
 import {
   Users,
   Clock,
-  ChefHat,
   DollarSign,
   Eye,
   Plus,
@@ -11,7 +10,6 @@ import {
   Receipt,
   TrendingUp,
   AlertCircle,
-  UserPlus,
   Download,
   Link2
 } from 'lucide-react'
@@ -28,12 +26,6 @@ import toast from 'react-hot-toast'
 import { tableService, type TableDto } from '../../features/tables/api/tableService'
 import { billService } from '../../features/invoice/api/billService'
 
-const tableStatusConfig = {
-  FREE: { label: 'Disponible', color: 'bg-emerald-500' },
-  OCCUPIED: { label: 'Ocupada', color: 'bg-amber-500' },
-  RESERVED: { label: 'Reservada', color: 'bg-cyan-500' },
-}
-
 // Fallback orders for demo
 
 const OrdersPage: FC = () => {
@@ -48,9 +40,9 @@ const OrdersPage: FC = () => {
   const [isAssignWaiterModalOpen, setIsAssignWaiterModalOpen] = useState(false)
   const [orderToAssign, setOrderToAssign] = useState<OrderDto | null>(null)
   const [tables, setTables] = useState<TableDto[]>([])
-  const [loadingTables, setLoadingTables] = useState(true)
+  const [, setLoadingTables] = useState(true)
   const [bills, setBills] = useState<BillDto[]>([])
-  const [loadingBills, setLoadingBills] = useState(false)
+  const [, setLoadingBills] = useState(false)
 
   // Billing sub-tab
   const [billingSubTab, setBillingSubTab] = useState<'pending' | 'history'>('pending')
@@ -447,360 +439,299 @@ const OrdersPage: FC = () => {
       )}
       
       {/* Header */}
-      <section className="bg-gradient-to-b from-slate-900 to-slate-950 py-8">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-2xl sm:text-3xl font-bold text-white">
-                  Panel de Pedidos
-                </h1>
-                {/* Badge de rol */}
-                {userIsAdmin && (
-                  <Badge variant="info" className="!bg-purple-500/20 !text-purple-400 !border-purple-500/30">
-                    Administrador
-                  </Badge>
-                )}
-                {isWaiter && !userIsAdmin && (
-                  <Badge variant="info" className="!bg-cyan-500/20 !text-cyan-400 !border-cyan-500/30">
-                    Mesero
-                  </Badge>
-                )}
-              </div>
-              <p className="text-slate-400">
-                {isWaiter && !userIsAdmin 
-                  ? 'Tus órdenes del día' 
-                  : 'Gestiona las órdenes y mesas del bar'
-                }
-              </p>
-              {/* Mostrar filtro activo */}
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-slate-500 text-sm">Mostrando:</span>
-                <span className="text-emerald-400 text-sm font-medium">{dateFilter.label}</span>
-                <span className="text-slate-500 text-sm">•</span>
-                <span className="text-slate-400 text-sm">{orders.length} órdenes</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Filtro de fecha */}
-              <DateFilter
-                dateFilter={dateFilter}
-                onFilterTypeChange={setFilterType}
-                onSpecificDateChange={setSpecificDate}
-                showWeekOption={userIsAdmin} // Solo admin puede ver opción de semana
-              />
-              <Button
-                variant="secondary"
-                leftIcon={<RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />}
-                onClick={fetchOrders}
-                disabled={isLoading}
-              >
-                Actualizar
-              </Button>
-              {(userIsAdmin || isWaiter) && (
-                <Button
-                  variant="primary"
-                  leftIcon={<Plus className="w-4 h-4" />}
-                  onClick={() => setIsCreateOrderModalOpen(true)}
-                >
-                  Nueva Orden
-                </Button>
+      {/* Main Content */}
+      <main className="pt-12 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto min-h-[calc(100vh-4rem)]">
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-4xl font-extrabold text-emerald-400 tracking-tight">Pedidos</h1>
+              {userIsAdmin && (
+                <Badge variant="info" className="!bg-purple-500/20 !text-purple-400 !border-purple-500/30">
+                  Administrador
+                </Badge>
+              )}
+              {isWaiter && !userIsAdmin && (
+                <Badge variant="info" className="!bg-cyan-500/20 !text-cyan-400 !border-cyan-500/30">
+                  Mesero
+                </Badge>
               )}
             </div>
+            <p className="text-slate-400 font-medium">
+              {isWaiter && !userIsAdmin 
+                ? 'Tus órdenes del día' 
+                : 'Gestión de órdenes activas en tiempo real'
+              }
+            </p>
           </div>
-
-          {/* Mostrar error si existe */}
-          {error && (
-            <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400" />
-              <p className="text-red-400 text-sm">{error}</p>
+          
+          <div className="flex items-center gap-3 flex-wrap">
+            <DateFilter
+              dateFilter={dateFilter}
+              onFilterTypeChange={setFilterType}
+              onSpecificDateChange={setSpecificDate}
+              showWeekOption={userIsAdmin}
+            />
+            <Button
+              variant="secondary"
+              leftIcon={<RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />}
+              onClick={fetchOrders}
+              disabled={isLoading}
+              className="bg-slate-800 border-slate-700/50 hover:bg-slate-700"
+            >
+              Actualizar
+            </Button>
+            {(userIsAdmin || isWaiter) && (
               <Button
-                size="sm"
-                variant="ghost"
-                onClick={fetchOrders}
-                className="ml-auto"
+                leftIcon={<Plus className="w-4 h-4" />}
+                onClick={() => setIsCreateOrderModalOpen(true)}
+                className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30"
               >
-                Reintentar
+                Nueva Orden
               </Button>
-            </div>
-          )}
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
-            <Card className="!p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-slate-400 text-sm">Pendientes</p>
-                  <p className="text-2xl font-bold text-white">{ordersByStatus.pending}</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="!p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                  <ChefHat className="w-5 h-5 text-cyan-400" />
-                </div>
-                <div>
-                  <p className="text-slate-400 text-sm">En Preparación</p>
-                  <p className="text-2xl font-bold text-white">{ordersByStatus.inProgress}</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="!p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-slate-400 text-sm">Listos</p>
-                  <p className="text-2xl font-bold text-white">{ordersByStatus.ready}</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="!p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-slate-400 text-sm">Total Ventas</p>
-                  <p className="text-2xl font-bold text-white">
-                    {formatPrice(orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0))}
-                  </p>
-                </div>
-              </div>
-            </Card>
+            )}
           </div>
         </div>
-      </section>
 
-      {/* Main Content */}
-      <section className="py-8">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Orders Tab Content */}
-          {activeTab === 'orders' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Tables Panel */}
-            <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-amber-400" />
-                    Mesas
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3">
-                    {loadingTables ? (
-                      <div className="text-center py-4 text-slate-400">Cargando mesas...</div>
-                    ) : tables.length === 0 ? (
-                      <div className="text-center py-4 text-slate-400">No hay mesas registradas</div>
-                    ) : (
-                      tables.map((table) => {
-                        const statusConfig = tableStatusConfig[table.status] || tableStatusConfig.FREE
-                        const isSelected = selectedTable === table.number
-                        // Filtrar órdenes activas (excluyendo BILLED y CANCELLED)
-                        const tableOrders = orders.filter(o => 
-                          o.tableNumber === table.number && 
-                          o.status !== OrderStatus.BILLED && 
-                          o.status !== 'BILLED' &&
-                          o.status !== OrderStatus.CANCELLED &&
-                          o.status !== 'CANCELLED'
-                        )
-
-                        return (
-                          <button
-                            key={table.id}
-                            onClick={() => setSelectedTable(isSelected ? null : table.number)}
-                            className={`p-4 rounded-xl border-2 transition-all text-left ${
-                              isSelected
-                                ? 'border-emerald-500 bg-emerald-500/10'
-                                : 'border-slate-700 hover:border-slate-600 bg-slate-800/50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-lg font-bold text-white">Mesa {table.number}</span>
-                              <span className={`w-2 h-2 rounded-full ${statusConfig.color}`} />
-                            </div>
-                            <p className="text-slate-400 text-sm">{table.capacity} asientos</p>
-                            <p className="text-xs text-slate-500 mt-1">{statusConfig.label}</p>
-                            {tableOrders.length > 0 && (
-                              <Badge variant="info" className="mt-2">
-                                {tableOrders.length} orden{tableOrders.length > 1 ? 'es' : ''}
-                              </Badge>
-                            )}
-                            {table.activeOrdersCount !== undefined && table.activeOrdersCount > 0 && (
-                              <p className="text-xs text-amber-400 mt-1">
-                                {table.activeOrdersCount} activa{table.activeOrdersCount > 1 ? 's' : ''}
-                              </p>
-                            )}
-                          </button>
-                        )
-                      })
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Orders Panel */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <CardTitle className="flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-emerald-400" />
-                      Órdenes Activas
-                      {selectedTable && (
-                        <Badge variant="info">Mesa {selectedTable}</Badge>
-                      )}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={() => setStatusFilter(null)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                          !statusFilter
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-slate-700 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        Todos
-                      </button>
-                      {[OrderStatus.CREATED, OrderStatus.IN_PROGRESS, OrderStatus.READY].map((status) => (
-                        <button
-                          key={status}
-                          onClick={() => setStatusFilter(status)}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                            statusFilter === status
-                              ? 'bg-emerald-500 text-white'
-                              : 'bg-slate-700 text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          {status === OrderStatus.CREATED && 'Pendiente'}
-                          {status === OrderStatus.IN_PROGRESS && 'En Prep.'}
-                          {status === OrderStatus.READY && 'Listo'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <LoadingState message="Cargando órdenes..." />
-                  ) : filteredOrders.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Filter className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                      <p className="text-slate-400">No hay órdenes que mostrar</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {filteredOrders.map((order) => (
-                        <div
-                          key={order.id}
-                          className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition-all"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-start gap-4">
-                              <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-white font-bold">
-                                {order.tableNumber}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="text-white font-semibold">{order.clientName}</h4>
-                                  <OrderStatusBadge status={order.status} />
-                                </div>
-                                <p className="text-slate-400 text-sm">
-                                  Mesero: {order.waiterUserName} • Orden #{order.id}
-                                </p>
-                                {order.notes && (
-                                  <p className="text-amber-400 text-xs mt-1">Nota: {order.notes}</p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="text-right">
-                                <p className="text-xl font-bold text-emerald-400">
-                                  {formatPrice(order.valueToPay || 0)}
-                                </p>
-                                <p className="text-slate-500 text-xs">
-                                  {order.date ? new Date(order.date).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                                </p>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  leftIcon={<Eye className="w-4 h-4" />}
-                                  onClick={() => handleViewOrder(order)}
-                                >
-                                  Ver
-                                </Button>
-                                {(order.status === OrderStatus.CREATED || order.status === 'CREATED') && userIsAdmin && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    leftIcon={<UserPlus className="w-4 h-4" />}
-                                    onClick={() => handleOpenAssignModal(order)}
-                                    className="!border-amber-500 !text-amber-400 hover:!bg-amber-500/10"
-                                  >
-                                    Asignar
-                                  </Button>
-                                )}
-                                {(order.status === OrderStatus.ASSIGNED || order.status === 'ASSIGNED') && isWaiter && !userIsAdmin && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleStatusChange(order.id, OrderStatus.IN_PROGRESS)}
-                                  >
-                                    Preparar
-                                  </Button>
-                                )}
-                                {(order.status === OrderStatus.IN_PROGRESS || order.status === 'IN_PROGRESS') && (
-                                  <Button
-                                    size="sm"
-                                    variant="primary"
-                                    onClick={() => handleStatusChange(order.id, OrderStatus.READY)}
-                                  >
-                                    Listo
-                                  </Button>
-                                )}
-                                {(order.status === OrderStatus.READY || order.status === 'READY') && (
-                                  <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => handleStatusChange(order.id, OrderStatus.DELIVERED)}
-                                  >
-                                    Entregar
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* Orders pagination */}
-                  {ordersTotalPages > 1 && (
-                    <div className="mt-6">
-                      <Pagination
-                        page={ordersPage}
-                        totalPages={ordersTotalPages}
-                        total={ordersTotalElements}
-                        itemsPerPage={30}
-                        label="órdenes"
-                        onPageChange={setOrdersPage}
-                      />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+        {/* Action Tabs for Orders filtering */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+          <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/5 w-fit overflow-x-auto">
+            <button 
+              onClick={() => setStatusFilter(null)}
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${!statusFilter ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:text-slate-300'}`}
+            >
+              Todos
+            </button>
+            <button 
+              onClick={() => setStatusFilter(OrderStatus.CREATED)}
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${statusFilter === OrderStatus.CREATED ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:text-slate-300'}`}
+            >
+              Pendientes
+            </button>
+            <button 
+              onClick={() => setStatusFilter(OrderStatus.IN_PROGRESS)}
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${statusFilter === OrderStatus.IN_PROGRESS ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:text-slate-300'}`}
+            >
+              En Preparación
+            </button>
+            <button 
+              onClick={() => setStatusFilter(OrderStatus.READY)}
+              className={`px-6 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${statusFilter === OrderStatus.READY ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:text-slate-300'}`}
+            >
+              Listos
+            </button>
           </div>
-          )}
+
+          {/* Table filter if needed */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 text-sm">Mesa:</span>
+            <select 
+              value={selectedTable === null ? '' : selectedTable} 
+              onChange={(e) => setSelectedTable(e.target.value === '' ? null : Number(e.target.value))}
+              className="bg-slate-900/50 border border-white/10 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            >
+              <option value="">Todas</option>
+              {tables.map(t => (
+                <option key={t.id} value={t.number}>Mesa {t.number}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Mostrar error si existe */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <p className="text-red-400 text-sm">{error}</p>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={fetchOrders}
+              className="ml-auto"
+            >
+              Reintentar
+            </Button>
+          </div>
+        )}
+
+        {/* Orders Tab Content */}
+        {activeTab === 'orders' && (
+          <>
+            {isLoading ? (
+              <LoadingState message="Cargando órdenes..." />
+            ) : filteredOrders.length === 0 ? (
+              <div className="text-center py-12 bg-slate-900/50 rounded-2xl border border-white/5">
+                <Filter className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                <p className="text-slate-400">No hay órdenes que coincidan con los filtros</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Summary Card (Bento Style) */}
+                <div className="bg-slate-800 border border-emerald-500/20 rounded-xl p-6 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-2xl font-bold text-white tracking-tight">Estado de Cocina</h4>
+                    <p className="text-sm text-slate-400 mb-6 font-medium">Rendimiento actual del turno</p>
+                    <div className="space-y-4">
+                      <div className="bg-slate-900/50 p-4 rounded-lg border border-white/5">
+                        <div className="flex justify-between mb-2">
+                          <span className="text-sm text-slate-400 font-medium">Carga de Trabajo</span>
+                          <span className="text-sm text-emerald-400 font-bold">{Math.min(100, Math.round((ordersByStatus.inProgress / (ordersByStatus.pending + ordersByStatus.inProgress || 1)) * 100))}%</span>
+                        </div>
+                        <div className="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-emerald-400 h-full shadow-[0_0_8px_rgba(52,211,153,0.5)] transition-all duration-500" 
+                            style={{ width: `${Math.min(100, Math.round((ordersByStatus.inProgress / (ordersByStatus.pending + ordersByStatus.inProgress || 1)) * 100))}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-900/50 p-4 rounded-lg border border-white/5">
+                          <span className="text-sm text-slate-500 block mb-1 font-medium">Órdenes</span>
+                          <span className="text-2xl font-bold text-emerald-400" style={{ textShadow: '0 0 8px rgba(52,211,153,0.3)' }}>{ordersByStatus.pending + ordersByStatus.inProgress}</span>
+                        </div>
+                        <div className="bg-slate-900/50 p-4 rounded-lg border border-white/5">
+                          <span className="text-sm text-slate-500 block mb-1 font-medium">Facturación</span>
+                          <span className="text-lg font-bold text-purple-400">{formatPrice(orders.reduce((sum, o) => sum + (o.valueToPay || 0), 0))}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {(userIsAdmin || isWaiter) && (
+                    <button onClick={() => setIsCreateOrderModalOpen(true)} className="w-full mt-6 py-3 rounded-lg border border-emerald-500/30 text-emerald-400 font-semibold hover:bg-emerald-500/10 transition-colors">
+                      + Nueva Orden
+                    </button>
+                  )}
+                </div>
+
+                {/* Active Order Cards */}
+                {filteredOrders.map((order) => {
+                  // Determine status styles and texts
+                  let statusBg = 'bg-slate-500/10 border-slate-500/20 text-slate-400'
+                  let glowBg = 'bg-slate-500/5'
+                  let btnVariant = 'bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 focus:ring-slate-500/30'
+                  let actionAction = () => handleViewOrder(order)
+                  let actionText = 'Ver Detalles'
+
+                  if (order.status === 'CREATED' || order.status === OrderStatus.CREATED) {
+                    statusBg = 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    glowBg = 'bg-amber-500/10'
+                    if (userIsAdmin) {
+                      actionText = 'Asignar'
+                      actionAction = () => handleOpenAssignModal(order)
+                      btnVariant = 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)]'
+                    } else if (isWaiter) {
+                      actionText = 'Preparar'
+                      actionAction = () => handleStatusChange(order.id, OrderStatus.IN_PROGRESS)
+                      btnVariant = 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)]'
+                    }
+                  } else if (order.status === 'IN_PROGRESS' || order.status === OrderStatus.IN_PROGRESS) {
+                    statusBg = 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+                    glowBg = 'bg-cyan-500/10'
+                    actionText = 'Marcar Listo'
+                    actionAction = () => handleStatusChange(order.id, OrderStatus.READY)
+                    btnVariant = 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
+                  } else if (order.status === 'READY' || order.status === OrderStatus.READY) {
+                    statusBg = 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                    glowBg = 'bg-emerald-500/10'
+                    actionText = 'Entregar'
+                    actionAction = () => handleStatusChange(order.id, OrderStatus.DELIVERED)
+                    btnVariant = 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 shadow-[0_0_10px_rgba(52,211,153,0.15)]'
+                  }
+
+                  const orderDate = new Date(order.date || order.orderDate || Date.now())
+                  const elapsedMs = Date.now() - orderDate.getTime()
+                  const mins = Math.max(0, Math.floor(elapsedMs / 60000))
+                  const timeStr = `${mins.toString().padStart(2, '0')}m`
+
+                  return (
+                    <div key={order.id} className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-xl p-6 flex flex-col gap-5 relative overflow-hidden group hover:border-white/20 transition-all shadow-lg shadow-black/50">
+                      <div className={`absolute top-0 right-0 w-32 h-32 rounded-full -mr-16 -mt-16 blur-3xl opacity-50 ${glowBg}`}></div>
+                      
+                      {/* Card Header */}
+                      <div className="flex justify-between items-start relative z-10">
+                        <div>
+                          <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">
+                            {order.tableNumber ? `Mesa ${order.tableNumber}` : 'Para LLevar'}
+                          </span>
+                          <h3 className="text-2xl font-bold text-white mt-1">#{order.id}</h3>
+                        </div>
+                        <div className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 border ${statusBg}`}>
+                          <Clock className="w-4 h-4" />
+                          <span className="text-sm font-semibold">{timeStr}</span>
+                        </div>
+                      </div>
+
+                      {/* Items Details preview or notes */}
+                      <div className="space-y-2 mt-2 relative z-10 flex-1 min-h-[80px]">
+                        {order.products && order.products.length > 0 ? (
+                          order.products.slice(0, 3).map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-slate-300 text-sm pb-2 border-b border-white/10 last:border-0 last:pb-0">
+                              <span className="truncate pr-4">{item.productName || `Prod #${item.productId}`}</span>
+                              <span className="text-white font-semibold">x{item.quantity}</span>
+                            </div>
+                          ))
+                        ) : order.notes ? (
+                          <div className="text-slate-400 text-sm italic line-clamp-3">"{order.notes}"</div>
+                        ) : (
+                          <div className="text-slate-500 text-sm flex items-center gap-1 h-full"><AlertCircle className="w-4 h-4"/> Detalles no cargados en resumen</div>
+                        )}
+                        {/* Indicador de más items */}
+                        {order.products && order.products.length > 3 && (
+                          <div className="text-xs text-slate-500 font-medium pt-1">
+                            + {order.products.length - 3} ítems más...
+                          </div>
+                        )}
+                      </div>
+
+                      {/* User / Waiter Name */}
+                      <div className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                        <Users className="w-3.5 h-3.5" />
+                        <span className="truncate">{order.clientName || 'Cliente'}</span>
+                        <span className="opacity-50 mx-1">•</span>
+                        <span className="truncate">{order.waiterUserName || 'Sin asignar'}</span>
+                      </div>
+
+                      {/* Card Footer */}
+                      <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between gap-4 relative z-10">
+                        <div className="text-emerald-400 font-bold text-2xl" style={{ textShadow: '0 0 8px rgba(52,211,153,0.3)' }}>
+                          {formatPrice(order.valueToPay || 0)}
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleViewOrder(order)} 
+                            className="p-3 rounded-lg border border-white/10 text-slate-300 hover:bg-slate-800 transition-colors"
+                            title="Ver detalles completos"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={actionAction} 
+                            className={`font-semibold px-5 py-2.5 rounded-lg transition-all active:scale-95 ${btnVariant}`}
+                          >
+                            {actionText}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {/* Orders pagination */}
+            {ordersTotalPages > 1 && (
+              <div className="mt-8 flex justify-center">
+                <Pagination
+                  page={ordersPage}
+                  totalPages={ordersTotalPages}
+                  total={ordersTotalElements}
+                  itemsPerPage={30}
+                  label="órdenes"
+                  onPageChange={setOrdersPage}
+                />
+              </div>
+            )}
+          </>
+        )}
 
           {/* Billing Tab Content */}
           {activeTab === 'billing' && (
@@ -1178,8 +1109,7 @@ const OrdersPage: FC = () => {
               </Card>
             </div>
           )}
-        </div>
-      </section>
+      </main>
 
       {/* Order Details Modal */}
       {isDetailModalOpen && selectedOrder && (

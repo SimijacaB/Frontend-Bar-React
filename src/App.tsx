@@ -15,7 +15,7 @@ import Landing from './pages/landing/Landing'
 import MenuPage from './pages/menu/Menu'
 import OrdersPage from './pages/orders/Orders'
 import CartPage from './pages/cart/Cart'
-import { QRGenerator, TableManagement } from './pages/admin'
+import { QRGenerator, TableManagement, StatisticsPage, AdminDashboard } from './pages/admin'
 import OrderAssignment from './pages/admin/OrderAssignment'
 import InventoryPanel from './pages/admin/InventoryPanel'
 
@@ -104,6 +104,16 @@ const App: FC = () => {
             {/* INTERNAL/ADMIN ROUTES                       */}
             {/* ============================================ */}
             <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <Layout showHeader={false} showFooter={false}>
+                    <AdminDashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
@@ -149,6 +159,16 @@ const App: FC = () => {
                 <ProtectedRoute>
                   <Layout>
                     <QRGenerator />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/estadisticas"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <StatisticsPage />
                   </Layout>
                 </ProtectedRoute>
               }

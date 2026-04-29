@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import './LoginPage.css'
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -22,7 +22,7 @@ export default function LoginPage() {
     setIsSubmitting(true)
 
     try {
-      await login({ username, password })
+      await login({ email, password })
       navigate(from, { replace: true })
     } catch {
       setErrorMessage('Usuario o contraseña incorrectos')
@@ -47,15 +47,15 @@ export default function LoginPage() {
           )}
 
           <div className="form-group">
-            <label htmlFor="username">Usuario</label>
+            <label htmlFor="email">Email</label>
             <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ingresa tu usuario"
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Ingresa tu email"
               required
-              autoComplete="username"
+              autoComplete="email"
               disabled={isSubmitting}
             />
           </div>

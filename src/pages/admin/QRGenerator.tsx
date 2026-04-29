@@ -152,15 +152,15 @@ const QRGeneratorPage: FC = () => {
     <AdminLayout>
       <div className="min-h-screen bg-slate-950 py-8">
         <div className="container mx-auto px-4 max-w-4xl">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 mb-4">
-            <QrCode className="w-8 h-8 text-emerald-400" />
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 mb-4">
+              <QrCode className="w-8 h-8 text-emerald-400" />
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Generador de Códigos QR</h1>
+            <p className="text-slate-400">
+              Genera códigos QR para cada mesa de tu bar
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Generador de Códigos QR</h1>
-          <p className="text-slate-400">
-            Genera códigos QR para cada mesa de tu bar
-          </p>
-        </div>
         
         {/* Table Selector */}
         <Card className="mb-6">
@@ -344,9 +344,9 @@ const QRGeneratorPage: FC = () => {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+</CardContent>
+          </Card>
+        </div>
       </div>
     </AdminLayout>
   )

@@ -10,15 +10,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/stitch-sdk": "^0.1.0",
     "@stomp/stompjs": "^7.3.0",
     "@tailwindcss/vite": "^4.1.13",
     "axios": "^1.13.2",
+    "date-fns": "^4.1.0",
     "lucide-react": "^0.555.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.9.6",
+    "recharts": "^3.8.1",
     "sockjs-client": "^1.6.1",
     "tailwindcss": "^4.1.13"
   },

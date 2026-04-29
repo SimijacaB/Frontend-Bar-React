@@ -122,9 +122,10 @@ const ProductsPage: FC = () => {
   }
 
   // Open modal for editing
-  const handleOpenEdit = async (product: ProductForListDto) => {
+  const handleOpenEdit = async (product: ProductForListDto) => { console.log("OPENING MODAL", product); 
     try {
       const fullProduct = await productService.getById(product.id)
+      console.log("FULL PRODUCT: ", JSON.stringify(fullProduct))
       setEditingProduct(fullProduct)
       setFormData({
         name: fullProduct.name,
@@ -134,9 +135,9 @@ const ProductsPage: FC = () => {
         photoId: fullProduct.photoId,
         isPrepared: fullProduct.isPrepared,
         category: fullProduct.category,
-        ingredients: fullProduct.ingredients?.map(ing => ({
-          ingredientId: ing.ingredient_id,
-          amount: ing.amount,
+        ingredients: fullProduct.ingredients?.map((ing: any) => ({
+          ingredientId: ing.ingredientId || ing.ingredient_id || ing.id || '',
+          amount: ing.amount || 0,
         })) || [],
       })
       setShowIngredients(fullProduct.isPrepared)
@@ -580,10 +581,11 @@ const ProductsPage: FC = () => {
                           return (
                             <div key={index} className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
                               <select
-                                value={ing.ingredientId}
+                                value={ing.ingredientId || ''}
                                 onChange={(e) => handleUpdateIngredient(index, 'ingredientId', parseInt(e.target.value))}
                                 className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent"
                               >
+                                <option value="">Seleccionar ingrediente</option>
                                 {ingredients.map(ingredient => (
                                   <option key={ingredient.id} value={ingredient.id}>
                                     {ingredient.name} ({ingredient.unitOfMeasure})
